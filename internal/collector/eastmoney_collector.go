@@ -224,9 +224,14 @@ func parseTimeString(timeStr string) (time.Time, bool) {
 
 	// 尝试多种时间格式进行解析
 	formats := []string{
-		time.DateTime, // "2006-01-02 15:04:05"
-		time.Layout,   // "01/02 03:04:05PM '06 -0700"
-		time.DateOnly, // "2006-01-02"
+		"2006-01-02T15:04:05", // ISO 8601 格式
+		"2006-01-02 15:04:05", // 标准日期时间格式
+		"2006-01-02",          // 日期格式
+		"20060102",            // 紧凑日期格式
+		"2006/01/02",          // 斜杠分隔日期格式
+		"2006/01/02 15:04:05", // 斜杠分隔日期时间格式
+		time.DateTime,         // Go标准日期时间格式
+		time.DateOnly,         // Go标准日期格式
 	}
 
 	for _, format := range formats {
@@ -865,4 +870,186 @@ func (e *EastMoneyCollector) convertToPerformanceReport(tsCode string, data map[
 	}
 
 	return report, nil
+}
+
+// GetShareholderCounts 获取股东户数数据
+func (e *EastMoneyCollector) GetShareholderCounts(tsCode string) ([]model.ShareholderCount, error) {
+	e.logger.Infof("Fetching shareholder counts for %s from EastMoney", tsCode)
+
+	// 验证股票代码格式
+	if !isValidTsCode(tsCode) {
+		return nil, fmt.Errorf("invalid tsCode format: %s", tsCode)
+	}
+
+	// 提取股票代码（去掉交易所后缀）
+	stockCode := strings.Split(tsCode, ".")[0]
+
+	// 构建股东户数API URL
+	baseURL := "https://datacenter-web.eastmoney.com/api/data/v1/get"
+	params := url.Values{}
+	params.Set("callback", fmt.Sprintf("jQuery1123014159649525581786_%d", time.Now().UnixMilli()))
+	params.Set("sortColumns", "END_DATE")
+	params.Set("sortTypes", "-1")
+	params.Set("pageSize", "50")
+	params.Set("pageNumber", "1")
+	params.Set("reportName", "RPT_HOLDERNUM_DET")
+	params.Set("columns", "SECURITY_CODE,SECURITY_NAME_ABBR,CHANGE_SHARES,CHANGE_REASON,END_DATE,INTERVAL_CHRATE,AVG_MARKET_CAP,AVG_HOLD_NUM,TOTAL_MARKET_CAP,TOTAL_A_SHARES,HOLD_NOTICE_DATE,HOLDER_NUM,PRE_HOLDER_NUM,HOLDER_NUM_CHANGE,HOLDER_NUM_RATIO,END_DATE,PRE_END_DATE")
+	params.Set("quoteColumns", "f2,f3")
+	params.Set("quoteType", "0")
+	params.Set("filter", fmt.Sprintf("(SECURITY_CODE=\"%s\")", stockCode))
+	params.Set("source", "WEB")
+	params.Set("client", "WEB")
+
+	requestURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+
+	// 发送请求
+	resp, err := e.makeRequest(requestURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch shareholder counts: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// 解析JSONP响应
+	bodyStr := string(body)
+
+	// 提取JSON部分（去掉JSONP包装）
+	start := strings.Index(bodyStr, "(") + 1
+	end := strings.LastIndex(bodyStr, ")")
+	if start <= 0 || end <= start {
+		return nil, fmt.Errorf("invalid JSONP response format")
+	}
+
+	jsonStr := bodyStr[start:end]
+
+	// 解析JSON响应
+	var response struct {
+		Result struct {
+			Data []map[string]interface{} `json:"data"`
+		} `json:"result"`
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonStr), &response); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
+	}
+
+	if !response.Success {
+		return nil, fmt.Errorf("API returned error: %s", response.Message)
+	}
+
+	// 转换数据
+	var counts []model.ShareholderCount
+	for _, item := range response.Result.Data {
+		count, err := e.convertToShareholderCount(tsCode, item)
+		if err != nil {
+			e.logger.Warnf("Failed to convert shareholder count data: %v", err)
+			continue
+		}
+		counts = append(counts, *count)
+	}
+
+	e.logger.Infof("Fetched %d shareholder count records for %s", len(counts), tsCode)
+	return counts, nil
+}
+
+// GetLatestShareholderCount 获取最新股东户数数据
+func (e *EastMoneyCollector) GetLatestShareholderCount(tsCode string) (*model.ShareholderCount, error) {
+	counts, err := e.GetShareholderCounts(tsCode)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(counts) == 0 {
+		return nil, fmt.Errorf("no shareholder count data found for %s", tsCode)
+	}
+
+	// 返回最新的股东户数数据（假设数据已按日期排序）
+	latest := counts[0]
+	for _, count := range counts {
+		if count.EndDate.After(latest.EndDate) {
+			latest = count
+		}
+	}
+
+	return &latest, nil
+}
+
+// convertToShareholderCount 转换股东户数数据
+func (e *EastMoneyCollector) convertToShareholderCount(tsCode string, data map[string]interface{}) (*model.ShareholderCount, error) {
+	count := &model.ShareholderCount{
+		TsCode: tsCode,
+	}
+
+	// 解析基本信息
+	if securityCode, ok := data["SECURITY_CODE"].(string); ok {
+		count.SecurityCode = securityCode
+	}
+
+	if securityName, ok := data["SECURITY_NAME_ABBR"].(string); ok {
+		count.SecurityName = securityName
+	}
+
+	// 解析统计截止日期
+	if endDateStr, ok := data["END_DATE"].(string); ok {
+		if endDate, success := parseTimeString(endDateStr); success {
+			count.EndDate = endDate
+		}
+	}
+
+	// 解析股东户数相关数据
+	count.HolderNum = int64(parseFloat(data["HOLDER_NUM"]))
+	count.PreHolderNum = int64(parseFloat(data["PRE_HOLDER_NUM"]))
+	count.HolderNumChange = int64(parseFloat(data["HOLDER_NUM_CHANGE"]))
+
+	// 解析股东户数变化比例，限制在合理范围内
+	holderNumRatio := parseFloat(data["HOLDER_NUM_RATIO"])
+	if holderNumRatio > 999999 || holderNumRatio < -999999 {
+		e.logger.Warnf("Holder num ratio out of range: %f, setting to 0", holderNumRatio)
+		holderNumRatio = 0
+	}
+	count.HolderNumRatio = holderNumRatio
+
+	// 解析市值相关数据
+	count.AvgMarketCap = parseFloat(data["AVG_MARKET_CAP"])
+	count.AvgHoldNum = parseFloat(data["AVG_HOLD_NUM"])
+	count.TotalMarketCap = parseFloat(data["TOTAL_MARKET_CAP"])
+	count.TotalAShares = int64(parseFloat(data["TOTAL_A_SHARES"]))
+
+	// 解析其他数据
+	count.IntervalChrate = parseFloat(data["INTERVAL_CHRATE"])
+	count.ChangeShares = int64(parseFloat(data["CHANGE_SHARES"]))
+
+	if changeReason, ok := data["CHANGE_REASON"].(string); ok {
+		count.ChangeReason = changeReason
+	}
+
+	// 解析公告日期
+	if holdNoticeDateStr, ok := data["HOLD_NOTICE_DATE"].(string); ok {
+		if holdNoticeDate, success := parseTimeString(holdNoticeDateStr); success {
+			count.HoldNoticeDate = &holdNoticeDate
+		}
+		// 如果解析失败，保持为 nil（GORM会将其存储为NULL）
+	}
+
+	// 解析上期截止日期
+	if preEndDateStr, ok := data["PRE_END_DATE"].(string); ok {
+		if preEndDate, success := parseTimeString(preEndDateStr); success {
+			count.PreEndDate = &preEndDate
+		}
+		// 如果解析失败，保持为 nil（GORM会将其存储为NULL）
+	}
+
+	// 设置创建和更新时间
+	now := time.Now()
+	count.CreatedAt = now
+	count.UpdatedAt = now
+
+	return count, nil
 }

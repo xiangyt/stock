@@ -34,6 +34,12 @@ type DataCollector interface {
 	// 获取最新业绩报表数据
 	GetLatestPerformanceReport(tsCode string) (*model.PerformanceReport, error)
 
+	// 获取股东户数数据
+	GetShareholderCounts(tsCode string) ([]model.ShareholderCount, error)
+
+	// 获取最新股东户数数据
+	GetLatestShareholderCount(tsCode string) (*model.ShareholderCount, error)
+
 	// 检查连接状态
 	IsConnected() bool
 

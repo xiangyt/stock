@@ -149,3 +149,35 @@ type BacktestResult struct {
 func (BacktestResult) TableName() string {
 	return "backtest_results"
 }
+
+// ShareholderCount 股东户数模型 - A股上市公司股东户数数据
+type ShareholderCount struct {
+	ID              uint       `json:"id" gorm:"primaryKey"`                       // 主键ID，数据库自增
+	TsCode          string     `json:"ts_code" gorm:"size:20;not null;index"`      // 股票代码，如：000001.SZ
+	SecurityCode    string     `json:"security_code" gorm:"size:10;not null"`      // 证券代码，如：000001
+	SecurityName    string     `json:"security_name" gorm:"size:100;not null"`     // 证券简称，如：平安银行
+	EndDate         time.Time  `json:"end_date" gorm:"not null;index"`             // 统计截止日期，如：2025-06-30
+	HolderNum       int64      `json:"holder_num" gorm:"not null"`                 // 股东户数，单位：户
+	PreHolderNum    int64      `json:"pre_holder_num"`                             // 上期股东户数，单位：户
+	HolderNumChange int64      `json:"holder_num_change"`                          // 股东户数变化，单位：户
+	HolderNumRatio  float64    `json:"holder_num_ratio" gorm:"type:decimal(8,4)"`  // 股东户数变化比例，单位：%
+	AvgMarketCap    float64    `json:"avg_market_cap" gorm:"type:decimal(15,2)"`   // 户均市值，单位：元
+	AvgHoldNum      float64    `json:"avg_hold_num" gorm:"type:decimal(15,2)"`     // 户均持股数，单位：股
+	TotalMarketCap  float64    `json:"total_market_cap" gorm:"type:decimal(20,2)"` // 总市值，单位：元
+	TotalAShares    int64      `json:"total_a_shares"`                             // 总股本，单位：股
+	IntervalChrate  float64    `json:"interval_chrate" gorm:"type:decimal(8,4)"`   // 区间涨跌幅，单位：%
+	ChangeShares    int64      `json:"change_shares"`                              // 股本变动，单位：股
+	ChangeReason    string     `json:"change_reason" gorm:"size:100"`              // 变动原因，如：发行融资
+	HoldNoticeDate  *time.Time `json:"hold_notice_date"`                           // 公告日期
+	PreEndDate      *time.Time `json:"pre_end_date"`                               // 上期截止日期
+	CreatedAt       time.Time  `json:"created_at"`                                 // 记录创建时间
+	UpdatedAt       time.Time  `json:"updated_at"`                                 // 记录更新时间
+
+	// 关联股票信息
+	Stock Stock `json:"stock" gorm:"foreignKey:TsCode;references:TsCode"` // 关联的股票基础信息
+}
+
+// TableName 指定表名
+func (ShareholderCount) TableName() string {
+	return "shareholder_counts"
+}

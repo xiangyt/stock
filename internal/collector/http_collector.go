@@ -393,3 +393,33 @@ func (h *HTTPCollector) GetLatestPerformanceReport(tsCode string) (*model.Perfor
 
 	return &latest, nil
 }
+
+// GetShareholderCounts 获取股东户数数据
+func (h *HTTPCollector) GetShareholderCounts(tsCode string) ([]model.ShareholderCount, error) {
+	h.logger.Infof("Fetching shareholder counts for %s", tsCode)
+
+	// HTTP采集器暂不支持股东户数数据获取
+	return nil, fmt.Errorf("shareholder counts not supported by HTTP collector")
+}
+
+// GetLatestShareholderCount 获取最新股东户数数据
+func (h *HTTPCollector) GetLatestShareholderCount(tsCode string) (*model.ShareholderCount, error) {
+	counts, err := h.GetShareholderCounts(tsCode)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(counts) == 0 {
+		return nil, fmt.Errorf("no shareholder counts found for %s", tsCode)
+	}
+
+	// 返回最新的股东户数数据
+	latest := counts[0]
+	for _, count := range counts {
+		if count.EndDate.After(latest.EndDate) {
+			latest = count
+		}
+	}
+
+	return &latest, nil
+}

@@ -3,11 +3,11 @@ package api
 import (
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"stock/internal/model"
 	"stock/internal/service"
+	"stock/internal/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -43,7 +43,7 @@ func (h *PerformanceHandler) GetPerformanceReports(c *gin.Context) {
 	}
 
 	// 转换股票代码格式
-	tsCode := convertToTsCode(code)
+	tsCode := utils.ConvertToTsCode(code)
 
 	reports, err := h.service.GetPerformanceReports(c.Request.Context(), tsCode)
 	if err != nil {
@@ -73,7 +73,7 @@ func (h *PerformanceHandler) GetLatestPerformanceReport(c *gin.Context) {
 	}
 
 	// 转换股票代码格式
-	tsCode := convertToTsCode(code)
+	tsCode := utils.ConvertToTsCode(code)
 
 	report, err := h.service.GetLatestPerformanceReport(c.Request.Context(), tsCode)
 	if err != nil {
@@ -108,7 +108,7 @@ func (h *PerformanceHandler) SyncPerformanceReports(c *gin.Context) {
 	}
 
 	// 转换股票代码格式
-	tsCode := convertToTsCode(code)
+	tsCode := utils.ConvertToTsCode(code)
 
 	err := h.service.SyncPerformanceReports(c.Request.Context(), tsCode)
 	if err != nil {
@@ -179,7 +179,7 @@ func (h *PerformanceHandler) GetPerformanceReportsByDateRange(c *gin.Context) {
 	}
 
 	// 转换股票代码格式
-	tsCode := convertToTsCode(code)
+	tsCode := utils.ConvertToTsCode(code)
 
 	reports, err := h.service.GetPerformanceReportsByDateRange(c.Request.Context(), tsCode, startDate, endDate)
 	if err != nil {
@@ -329,7 +329,7 @@ func (h *PerformanceHandler) DeletePerformanceReports(c *gin.Context) {
 	}
 
 	// 转换股票代码格式
-	tsCode := convertToTsCode(code)
+	tsCode := utils.ConvertToTsCode(code)
 
 	err := h.service.DeletePerformanceReports(c.Request.Context(), tsCode)
 	if err != nil {
@@ -338,20 +338,4 @@ func (h *PerformanceHandler) DeletePerformanceReports(c *gin.Context) {
 	}
 
 	Success(c, gin.H{"message": "删除成功"})
-}
-
-// convertToTsCode 转换股票代码为标准格式
-func convertToTsCode(code string) string {
-	tsCode := strings.ToUpper(code)
-	if !strings.Contains(tsCode, ".") {
-		// 如果没有交易所后缀，尝试添加
-		if len(code) >= 1 {
-			if code[0] == '6' {
-				tsCode = code + ".SH"
-			} else {
-				tsCode = code + ".SZ"
-			}
-		}
-	}
-	return tsCode
 }
