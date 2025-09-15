@@ -43,6 +43,63 @@ func (DailyData) TableName() string {
 	return "daily_data"
 }
 
+// WeeklyData 周K线数据模型 - A股周K线行情数据
+type WeeklyData struct {
+	ID        uint    `json:"id" gorm:"primaryKey"`                  // 主键ID，数据库自增
+	TsCode    string  `json:"ts_code" gorm:"size:20;not null;index"` // 股票代码，如：000001.SZ
+	TradeDate int     `json:"trade_date" gorm:"not null;index"`      // 周结束交易日期，YYYYMMDD格式，如：20250910
+	Open      float64 `json:"open" gorm:"type:decimal(10,3)"`        // 周开盘价，单位：元
+	High      float64 `json:"high" gorm:"type:decimal(10,3)"`        // 周最高价，单位：元
+	Low       float64 `json:"low" gorm:"type:decimal(10,3)"`         // 周最低价，单位：元
+	Close     float64 `json:"close" gorm:"type:decimal(10,3)"`       // 周收盘价，单位：元
+	Volume    int64   `json:"volume"`                                // 周成交量，单位：股
+	Amount    float64 `json:"amount" gorm:"type:decimal(20,2)"`      // 周成交额，单位：元
+	CreatedAt int64   `json:"created_at"`                            // 记录创建时间戳
+}
+
+// TableName 指定表名
+func (WeeklyData) TableName() string {
+	return "weekly_data"
+}
+
+// MonthlyData 月K线数据模型 - A股月K线行情数据
+type MonthlyData struct {
+	ID        uint    `json:"id" gorm:"primaryKey"`                  // 主键ID，数据库自增
+	TsCode    string  `json:"ts_code" gorm:"size:20;not null;index"` // 股票代码，如：000001.SZ
+	TradeDate int     `json:"trade_date" gorm:"not null;index"`      // 月结束交易日期，YYYYMMDD格式，如：20250930
+	Open      float64 `json:"open" gorm:"type:decimal(10,3)"`        // 月开盘价，单位：元
+	High      float64 `json:"high" gorm:"type:decimal(10,3)"`        // 月最高价，单位：元
+	Low       float64 `json:"low" gorm:"type:decimal(10,3)"`         // 月最低价，单位：元
+	Close     float64 `json:"close" gorm:"type:decimal(10,3)"`       // 月收盘价，单位：元
+	Volume    int64   `json:"volume"`                                // 月成交量，单位：股
+	Amount    float64 `json:"amount" gorm:"type:decimal(20,2)"`      // 月成交额，单位：元
+	CreatedAt int64   `json:"created_at"`                            // 记录创建时间戳
+}
+
+// TableName 指定表名
+func (MonthlyData) TableName() string {
+	return "monthly_data"
+}
+
+// YearlyData 年K线数据模型 - A股年K线行情数据
+type YearlyData struct {
+	ID        uint    `json:"id" gorm:"primaryKey"`                  // 主键ID，数据库自增
+	TsCode    string  `json:"ts_code" gorm:"size:20;not null;index"` // 股票代码，如：000001.SZ
+	TradeDate int     `json:"trade_date" gorm:"not null;index"`      // 年结束交易日期，YYYYMMDD格式，如：20251231
+	Open      float64 `json:"open" gorm:"type:decimal(10,3)"`        // 年开盘价，单位：元
+	High      float64 `json:"high" gorm:"type:decimal(10,3)"`        // 年最高价，单位：元
+	Low       float64 `json:"low" gorm:"type:decimal(10,3)"`         // 年最低价，单位：元
+	Close     float64 `json:"close" gorm:"type:decimal(10,3)"`       // 年收盘价，单位：元
+	Volume    int64   `json:"volume"`                                // 年成交量，单位：股
+	Amount    float64 `json:"amount" gorm:"type:decimal(20,2)"`      // 年成交额，单位：元
+	CreatedAt int64   `json:"created_at"`                            // 记录创建时间戳
+}
+
+// TableName 指定表名
+func (YearlyData) TableName() string {
+	return "yearly_data"
+}
+
 // TechnicalIndicator 技术指标模型 - A股技术分析指标
 type TechnicalIndicator struct {
 	ID         uint    `json:"id" gorm:"primaryKey"`                  // 主键ID，数据库自增

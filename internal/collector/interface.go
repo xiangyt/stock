@@ -25,6 +25,15 @@ type DataCollector interface {
 	// 获取日K线数据
 	GetDailyKLine(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error)
 
+	// 获取周K线数据
+	GetWeeklyKLine(tsCode string, startDate, endDate time.Time) ([]model.WeeklyData, error)
+
+	// 获取月K线数据
+	GetMonthlyKLine(tsCode string, startDate, endDate time.Time) ([]model.MonthlyData, error)
+
+	// 获取年K线数据
+	GetYearlyKLine(tsCode string, startDate, endDate time.Time) ([]model.YearlyData, error)
+
 	// 获取实时数据
 	GetRealtimeData(tsCodes []string) ([]model.DailyData, error)
 

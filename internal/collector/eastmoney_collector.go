@@ -670,6 +670,27 @@ func (e *EastMoneyCollector) GetRealtimeData(tsCodes []string) ([]model.DailyDat
 	return realtimeData, nil
 }
 
+// parseInt64 解析64位整数
+func parseInt64(s string) int64 {
+	if s == "" || s == "-" {
+		return 0
+	}
+	i, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return i
+}
+
+// parseStockCode 解析股票代码，返回代码和市场
+func (e *EastMoneyCollector) parseStockCode(tsCode string) (string, string, error) {
+	parts := strings.Split(tsCode, ".")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid tsCode format: %s", tsCode)
+	}
+	return parts[0], parts[1], nil
+}
+
 // calculateNetProfitMargin 计算净利润率
 func calculateNetProfitMargin(netProfit, revenue float64) float64 {
 	if revenue == 0 {
@@ -979,6 +1000,236 @@ func (e *EastMoneyCollector) GetLatestShareholderCount(tsCode string) (*model.Sh
 	}
 
 	return &latest, nil
+}
+
+// GetWeeklyKLine 获取周K线数据
+func (e *EastMoneyCollector) GetWeeklyKLine(tsCode string, startDate, endDate time.Time) ([]model.WeeklyData, error) {
+	result, err := e.getKLineData(tsCode, startDate, endDate, "102", "weekly")
+	if err != nil {
+		return nil, err
+	}
+	return result.([]model.WeeklyData), nil
+}
+
+// GetMonthlyKLine 获取月K线数据
+func (e *EastMoneyCollector) GetMonthlyKLine(tsCode string, startDate, endDate time.Time) ([]model.MonthlyData, error) {
+	result, err := e.getKLineData(tsCode, startDate, endDate, "103", "monthly")
+	if err != nil {
+		return nil, err
+	}
+	return result.([]model.MonthlyData), nil
+}
+
+// GetYearlyKLine 获取年K线数据
+func (e *EastMoneyCollector) GetYearlyKLine(tsCode string, startDate, endDate time.Time) ([]model.YearlyData, error) {
+	result, err := e.getKLineData(tsCode, startDate, endDate, "104", "yearly")
+	if err != nil {
+		return nil, err
+	}
+	return result.([]model.YearlyData), nil
+}
+
+// getKLineData 通用K线数据获取方法
+func (e *EastMoneyCollector) getKLineData(tsCode string, startDate, endDate time.Time, klt, dataType string) (interface{}, error) {
+	e.logger.Infof("Fetching %s K-line data for %s from %s to %s", dataType, tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+
+	// 解析股票代码
+	symbol, market, err := e.parseStockCode(tsCode)
+	if err != nil {
+		return nil, err
+	}
+
+	// 构建secid
+	var secid string
+	if market == "SH" {
+		secid = fmt.Sprintf("1.%s", symbol)
+	} else if market == "SZ" {
+		secid = fmt.Sprintf("0.%s", symbol)
+	} else {
+		return nil, fmt.Errorf("unsupported market: %s", market)
+	}
+
+	// 构建请求URL
+	baseURL := "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+	params := url.Values{}
+	params.Set("fields1", "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13")
+	params.Set("fields2", "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61")
+	params.Set("beg", "0")
+	params.Set("end", "20500101")
+	params.Set("ut", "fa5fd1943c7b386f172d6893dbfba10b")
+	params.Set("rtntype", "6")
+	params.Set("secid", secid)
+	params.Set("klt", klt) // 102=周K, 103=月K, 104=年K
+	params.Set("fqt", "1") // 前复权
+	params.Set("cb", fmt.Sprintf("jsonp%d", time.Now().UnixMilli()))
+
+	requestURL := baseURL + "?" + params.Encode()
+
+	resp, err := e.makeRequest(requestURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析JSONP响应
+	bodyStr := string(body)
+	var jsonData string
+
+	// 尝试jsonp格式
+	re := regexp.MustCompile(`jsonp\d+\((.*)\)`)
+	matches := re.FindStringSubmatch(bodyStr)
+	if len(matches) >= 2 {
+		jsonData = matches[1]
+	} else {
+		return nil, fmt.Errorf("invalid JSONP response format: %s", bodyStr[:100])
+	}
+
+	var response struct {
+		RC   int `json:"rc"`
+		RT   int `json:"rt"`
+		Data struct {
+			Code   string   `json:"code"`
+			Market int      `json:"market"`
+			Name   string   `json:"name"`
+			Klines []string `json:"klines"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonData), &response); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %v", err)
+	}
+
+	if response.RC != 0 {
+		return nil, fmt.Errorf("API error: rc=%d", response.RC)
+	}
+
+	// 根据数据类型返回不同的结果
+	switch dataType {
+	case "weekly":
+		var weeklyData []model.WeeklyData
+		for _, kline := range response.Data.Klines {
+			data := e.parseKLineToWeekly(tsCode, kline)
+			if data != nil {
+				weeklyData = append(weeklyData, *data)
+			}
+		}
+		e.logger.Infof("Fetched %d weekly K-line records for %s", len(weeklyData), tsCode)
+		return weeklyData, nil
+
+	case "monthly":
+		var monthlyData []model.MonthlyData
+		for _, kline := range response.Data.Klines {
+			data := e.parseKLineToMonthly(tsCode, kline)
+			if data != nil {
+				monthlyData = append(monthlyData, *data)
+			}
+		}
+		e.logger.Infof("Fetched %d monthly K-line records for %s", len(monthlyData), tsCode)
+		return monthlyData, nil
+
+	case "yearly":
+		var yearlyData []model.YearlyData
+		for _, kline := range response.Data.Klines {
+			data := e.parseKLineToYearly(tsCode, kline)
+			if data != nil {
+				yearlyData = append(yearlyData, *data)
+			}
+		}
+		e.logger.Infof("Fetched %d yearly K-line records for %s", len(yearlyData), tsCode)
+		return yearlyData, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported data type: %s", dataType)
+	}
+}
+
+// parseKLineToWeekly 解析K线数据为周K线
+func (e *EastMoneyCollector) parseKLineToWeekly(tsCode, kline string) *model.WeeklyData {
+	fields := strings.Split(kline, ",")
+	if len(fields) < 11 {
+		return nil
+	}
+
+	tradeDate, err := time.Parse("2006-01-02", fields[0])
+	if err != nil {
+		e.logger.Warnf("Failed to parse date %s: %v", fields[0], err)
+		return nil
+	}
+
+	tradeDateInt := tradeDate.Year()*10000 + int(tradeDate.Month())*100 + tradeDate.Day()
+
+	return &model.WeeklyData{
+		TsCode:    tsCode,
+		TradeDate: tradeDateInt,
+		Open:      parseFloat(fields[1]),
+		Close:     parseFloat(fields[2]),
+		High:      parseFloat(fields[3]),
+		Low:       parseFloat(fields[4]),
+		Volume:    parseInt64(fields[5]),
+		Amount:    parseFloat(fields[6]),
+		CreatedAt: time.Now().Unix(),
+	}
+}
+
+// parseKLineToMonthly 解析K线数据为月K线
+func (e *EastMoneyCollector) parseKLineToMonthly(tsCode, kline string) *model.MonthlyData {
+	fields := strings.Split(kline, ",")
+	if len(fields) < 11 {
+		return nil
+	}
+
+	tradeDate, err := time.Parse("2006-01-02", fields[0])
+	if err != nil {
+		e.logger.Warnf("Failed to parse date %s: %v", fields[0], err)
+		return nil
+	}
+
+	tradeDateInt := tradeDate.Year()*10000 + int(tradeDate.Month())*100 + tradeDate.Day()
+
+	return &model.MonthlyData{
+		TsCode:    tsCode,
+		TradeDate: tradeDateInt,
+		Open:      parseFloat(fields[1]),
+		Close:     parseFloat(fields[2]),
+		High:      parseFloat(fields[3]),
+		Low:       parseFloat(fields[4]),
+		Volume:    parseInt64(fields[5]),
+		Amount:    parseFloat(fields[6]),
+		CreatedAt: time.Now().Unix(),
+	}
+}
+
+// parseKLineToYearly 解析K线数据为年K线
+func (e *EastMoneyCollector) parseKLineToYearly(tsCode, kline string) *model.YearlyData {
+	fields := strings.Split(kline, ",")
+	if len(fields) < 11 {
+		return nil
+	}
+
+	tradeDate, err := time.Parse("2006-01-02", fields[0])
+	if err != nil {
+		e.logger.Warnf("Failed to parse date %s: %v", fields[0], err)
+		return nil
+	}
+
+	tradeDateInt := tradeDate.Year()*10000 + int(tradeDate.Month())*100 + tradeDate.Day()
+
+	return &model.YearlyData{
+		TsCode:    tsCode,
+		TradeDate: tradeDateInt,
+		Open:      parseFloat(fields[1]),
+		Close:     parseFloat(fields[2]),
+		High:      parseFloat(fields[3]),
+		Low:       parseFloat(fields[4]),
+		Volume:    parseInt64(fields[5]),
+		Amount:    parseFloat(fields[6]),
+		CreatedAt: time.Now().Unix(),
+	}
 }
 
 // convertToShareholderCount 转换股东户数数据

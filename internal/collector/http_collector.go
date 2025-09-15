@@ -423,3 +423,24 @@ func (h *HTTPCollector) GetLatestShareholderCount(tsCode string) (*model.Shareho
 
 	return &latest, nil
 }
+
+// GetWeeklyKLine 获取周K线数据
+func (h *HTTPCollector) GetWeeklyKLine(tsCode string, startDate, endDate time.Time) ([]model.WeeklyData, error) {
+	h.logger.Infof("Fetching weekly K-line data for %s", tsCode)
+	// HTTP采集器暂不支持周K线数据获取
+	return nil, fmt.Errorf("weekly K-line data not supported by HTTP collector")
+}
+
+// GetMonthlyKLine 获取月K线数据
+func (h *HTTPCollector) GetMonthlyKLine(tsCode string, startDate, endDate time.Time) ([]model.MonthlyData, error) {
+	h.logger.Infof("Fetching monthly K-line data for %s", tsCode)
+	// HTTP采集器暂不支持月K线数据获取
+	return nil, fmt.Errorf("monthly K-line data not supported by HTTP collector")
+}
+
+// GetYearlyKLine 获取年K线数据
+func (h *HTTPCollector) GetYearlyKLine(tsCode string, startDate, endDate time.Time) ([]model.YearlyData, error) {
+	h.logger.Infof("Fetching yearly K-line data for %s", tsCode)
+	// HTTP采集器暂不支持年K线数据获取
+	return nil, fmt.Errorf("yearly K-line data not supported by HTTP collector")
+}
