@@ -1,32 +1,95 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Go
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+*.test
+*.out
+go.work
 
-# Test binary, built with `go test -c`
+# Build
+build/
+dist/
+*.tar.gz
+*.zip
+
+# IDE
+.vscode/
+.codebuddy/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Configuration files with sensitive data
+configs/notification.yaml
+configs/database.yaml
+configs/api.yaml
+configs/*.local.yaml
+
+# Data
+data/
+*.csv
+*.xlsx
+*.json
+
+# Coverage
+coverage.out
+coverage.html
+
+# Vendor (if using)
+vendor/
+
+# Temporary
+tmp/
+temp/
+
+# Docker
+.dockerignore
+
+# Documentation
+docs/swagger.json
+docs/swagger.yaml
+docs/docs.go
+
+# Test
+testdata/
 *.test
 
-# Code coverage profiles and other test artifacts
-*.out
-coverage.*
-*.coverprofile
-profile.cov
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
-go.work
-go.work.sum
-
-# env file
-.env
-
-# Editor/IDE
-# .idea/
-# .vscode/
+# Certificates
+*.pem
+*.key
+*.crt
+ssl/

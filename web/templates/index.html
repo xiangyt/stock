@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .api-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .api-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .api-url {
+            font-family: 'Courier New', monospace;
+            background-color: #e8e8e8;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+        .api-desc {
+            color: #666;
+            font-size: 14px;
+        }
+        .test-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .test-btn:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 0 4px 4px 0;
+            display: none;
+        }
+        .result pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 12px;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        .input-group input {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{.title}}</h1>
+        
+        <div class="api-section">
+            <div class="api-title">1. 获取股票列表</div>
+            <div class="api-url">GET /api/v1/stocks?page=1&size=10</div>
+            <div class="api-desc">获取A股市场股票列表，支持分页</div>
+            <button class="test-btn" onclick="testAPI('/api/v1/stocks?page=1&size=10', 'result1')">测试接口</button>
+            <div id="result1" class="result">
+                <pre id="result1-content"></pre>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <div class="api-title">2. 获取股票详情</div>
+            <div class="api-url">GET /api/v1/stocks/{code}</div>
+            <div class="api-desc">获取指定股票的详细信息</div>
+            <div class="input-group">
+                <input type="text" id="stock-code" placeholder="输入股票代码，如：000001.SZ" value="000001.SZ">
+                <button class="test-btn" onclick="testStockDetail()">测试接口</button>
+            </div>
+            <div id="result2" class="result">
+                <pre id="result2-content"></pre>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <div class="api-title">3. 获取K线数据</div>
+            <div class="api-url">GET /api/v1/stocks/{code}/kline?days=30</div>
+            <div class="api-desc">获取指定股票的K线数据</div>
+            <div class="input-group">
+                <input type="text" id="kline-code" placeholder="输入股票代码，如：000001.SZ" value="000001.SZ">
+                <input type="number" id="kline-days" placeholder="天数" value="30" min="1" max="1000">
+                <button class="test-btn" onclick="testKLine()">测试接口</button>
+            </div>
+            <div id="result3" class="result">
+                <pre id="result3-content"></pre>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <div class="api-title">4. 获取财务数据</div>
+            <div class="api-url">GET /api/v1/stocks/{code}/financial</div>
+            <div class="api-desc">获取指定股票的财务数据</div>
+            <div class="input-group">
+                <input type="text" id="financial-code" placeholder="输入股票代码，如：000001.SZ" value="000001.SZ">
+                <button class="test-btn" onclick="testFinancial()">测试接口</button>
+            </div>
+            <div id="result4" class="result">
+                <pre id="result4-content"></pre>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <div class="api-title">5. 获取实时数据</div>
+            <div class="api-url">GET /api/v1/realtime?codes=000001.SZ,000002.SZ</div>
+            <div class="api-desc">获取多只股票的实时数据</div>
+            <div class="input-group">
+                <input type="text" id="realtime-codes" placeholder="输入股票代码，用逗号分隔" value="000001.SZ,000002.SZ,600000.SH">
+                <button class="test-btn" onclick="testRealtime()">测试接口</button>
+            </div>
+            <div id="result5" class="result">
+                <pre id="result5-content"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function testAPI(url, resultId) {
+            const resultDiv = document.getElementById(resultId);
+            const contentDiv = document.getElementById(resultId + '-content');
+            
+            try {
+                resultDiv.style.display = 'block';
+                contentDiv.textContent = '请求中...';
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                contentDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                contentDiv.textContent = '请求失败: ' + error.message;
+            }
+        }
+
+        function testStockDetail() {
+            const code = document.getElementById('stock-code').value;
+            if (!code) {
+                alert('请输入股票代码');
+                return;
+            }
+            testAPI(`/api/v1/stocks/${code}`, 'result2');
+        }
+
+        function testKLine() {
+            const code = document.getElementById('kline-code').value;
+            const days = document.getElementById('kline-days').value || 30;
+            if (!code) {
+                alert('请输入股票代码');
+                return;
+            }
+            testAPI(`/api/v1/stocks/${code}/kline?days=${days}`, 'result3');
+        }
+
+        function testFinancial() {
+            const code = document.getElementById('financial-code').value;
+            if (!code) {
+                alert('请输入股票代码');
+                return;
+            }
+            testAPI(`/api/v1/stocks/${code}/financial`, 'result4');
+        }
+
+        function testRealtime() {
+            const codes = document.getElementById('realtime-codes').value;
+            if (!codes) {
+                alert('请输入股票代码');
+                return;
+            }
+            testAPI(`/api/v1/realtime?codes=${encodeURIComponent(codes)}`, 'result5');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,305 @@
+openapi: 3.0.3
+info:
+  title: 智能选股系统 API
+  description: 基于Go语言开发的智能选股系统API文档
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: 开发环境
+  - url: https://api.stock.com/v1
+    description: 生产环境
+
+paths:
+  # 股票相关接口
+  /stocks:
+    get:
+      summary: 获取股票列表
+      tags: [股票管理]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: market
+          in: query
+          schema:
+            type: string
+            enum: [SZ, SH, BJ]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockListResponse'
+
+  /stocks/{code}:
+    get:
+      summary: 获取股票详情
+      tags: [股票管理]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockDetailResponse'
+
+  # 分析相关接口
+  /analysis/technical/{code}:
+    get:
+      summary: 获取技术分析
+      tags: [技术分析]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [1d, 5d, 1m, 3m, 6m, 1y]
+            default: 1m
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalAnalysisResponse'
+
+  /analysis/fundamental/{code}:
+    get:
+      summary: 获取基本面分析
+      tags: [基本面分析]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundamentalAnalysisResponse'
+
+  # 选股相关接口
+  /selection/strategies:
+    get:
+      summary: 获取策略列表
+      tags: [选股策略]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyListResponse'
+
+  /selection/execute:
+    post:
+      summary: 执行选股
+      tags: [选股策略]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectionRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelectionResponse'
+
+  # 回测相关接口
+  /backtest/run:
+    post:
+      summary: 运行回测
+      tags: [回测系统]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestResponse'
+
+components:
+  schemas:
+    # 基础响应结构
+    BaseResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "success"
+        timestamp:
+          type: string
+          format: date-time
+
+    # 股票相关模型
+    Stock:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "000001.SZ"
+        name:
+          type: string
+          example: "平安银行"
+        market:
+          type: string
+          example: "SZ"
+        industry:
+          type: string
+          example: "银行"
+        list_date:
+          type: string
+          format: date
+        is_active:
+          type: boolean
+
+    StockListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                stocks:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Stock'
+                total:
+                  type: integer
+                page:
+                  type: integer
+                limit:
+                  type: integer
+
+    # 技术分析模型
+    TechnicalIndicators:
+      type: object
+      properties:
+        ma5:
+          type: number
+        ma20:
+          type: number
+        ma60:
+          type: number
+        rsi:
+          type: number
+        macd:
+          type: number
+        kdj_k:
+          type: number
+        kdj_d:
+          type: number
+        kdj_j:
+          type: number
+
+    TechnicalAnalysisResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                indicators:
+                  $ref: '#/components/schemas/TechnicalIndicators'
+                signals:
+                  type: object
+                score:
+                  type: number
+
+    # 选股请求模型
+    SelectionRequest:
+      type: object
+      properties:
+        strategy:
+          type: string
+          enum: [technical, fundamental, combined]
+        parameters:
+          type: object
+        limit:
+          type: integer
+          default: 20
+
+    SelectionResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                results:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      stock:
+                        $ref: '#/components/schemas/Stock'
+                      score:
+                        type: number
+                      reason:
+                        type: string
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: 股票管理
+    description: 股票基础信息管理
+  - name: 技术分析
+    description: 技术指标分析
+  - name: 基本面分析
+    description: 财务数据分析
+  - name: 选股策略
+    description: 选股策略执行
+  - name: 回测系统
+    description: 策略回测验证

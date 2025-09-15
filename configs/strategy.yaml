@@ -1,0 +1,141 @@
+# 选股策略配置
+
+# 技术分析策略配置
+technical:
+  # 移动平均线参数
+  ma:
+    short_period: 5
+    medium_period: 20
+    long_period: 60
+    
+  # RSI参数
+  rsi:
+    period: 14
+    overbought: 70
+    oversold: 30
+    
+  # MACD参数
+  macd:
+    fast_period: 12
+    slow_period: 26
+    signal_period: 9
+    
+  # KDJ参数
+  kdj:
+    k_period: 9
+    d_period: 3
+    j_multiplier: 3
+    overbought: 80
+    oversold: 20
+    
+  # 布林带参数
+  bollinger:
+    period: 20
+    std_dev: 2
+
+# 基本面分析策略配置
+fundamental:
+  # 估值指标范围
+  valuation:
+    pe_min: 0
+    pe_max: 30
+    pb_min: 0
+    pb_max: 5
+    ps_min: 0
+    ps_max: 10
+    
+  # 盈利能力指标
+  profitability:
+    roe_min: 0.1
+    roa_min: 0.05
+    gross_margin_min: 0.2
+    net_margin_min: 0.05
+    
+  # 财务健康指标
+  financial_health:
+    debt_ratio_max: 0.6
+    current_ratio_min: 1.0
+    quick_ratio_min: 0.8
+    
+  # 成长性指标
+  growth:
+    revenue_growth_min: 0.1
+    profit_growth_min: 0.15
+    eps_growth_min: 0.1
+
+# 综合策略配置
+combined:
+  # 权重分配
+  weights:
+    technical_score: 0.4
+    fundamental_score: 0.6
+    
+  # 评分阈值
+  thresholds:
+    min_score: 60
+    excellent_score: 85
+    
+  # 过滤条件
+  filters:
+    min_market_cap: 1000000000  # 10亿
+    min_volume: 1000000         # 100万
+    max_pe: 50
+    min_roe: 0.05
+
+# 风险管理配置
+risk:
+  # 仓位管理
+  position:
+    max_single_position: 0.1    # 单只股票最大仓位10%
+    max_sector_position: 0.3    # 单个行业最大仓位30%
+    
+  # 止损止盈
+  stop_loss:
+    enabled: true
+    percentage: 0.1             # 10%止损
+    
+  stop_profit:
+    enabled: true
+    percentage: 0.2             # 20%止盈
+    
+  # 风险评估
+  risk_assessment:
+    volatility_threshold: 0.3   # 波动率阈值
+    beta_max: 2.0              # 最大贝塔值
+    correlation_max: 0.8        # 最大相关性
+
+# 回测配置
+backtest:
+  # 回测周期
+  period:
+    start_date: "2020-01-01"
+    end_date: "2023-12-31"
+    
+  # 初始资金
+  initial_capital: 1000000
+  
+  # 交易成本
+  transaction_cost:
+    commission_rate: 0.0003     # 万三佣金
+    stamp_tax_rate: 0.001       # 千一印花税
+    
+  # 再平衡频率
+  rebalance_frequency: "monthly"  # daily, weekly, monthly, quarterly
+
+# 数据更新配置
+data_update:
+  # 更新频率
+  schedule:
+    daily_data: "0 18 * * 1-5"      # 工作日18点更新日线数据
+    financial_data: "0 2 * * 6"     # 周六凌晨2点更新财务数据
+    realtime_data: "*/5 * * * 1-5"  # 工作日每5分钟更新实时数据
+    
+  # 数据源优先级
+  data_sources:
+    primary: "tushare"
+    fallback: ["akshare", "yahoo"]
+    
+  # 重试配置
+  retry:
+    max_attempts: 3
+    delay_seconds: 5

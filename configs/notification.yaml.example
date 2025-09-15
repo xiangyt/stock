@@ -1,0 +1,31 @@
+# 通知配置模板
+# 复制此文件为 notification.yaml 并填入真实的配置信息
+notification:
+  # 钉钉机器人配置
+  dingtalk:
+    enabled: true
+    webhook: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_ACCESS_TOKEN"
+    secret: "YOUR_SECRET_KEY"  # 可选，用于签名验证
+  
+  # 企微机器人配置
+  wework:
+    enabled: true
+    webhook: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+
+# 使用说明：
+# 1. 钉钉机器人：
+#    - 在钉钉群中添加自定义机器人
+#    - 复制Webhook地址到webhook字段，替换YOUR_ACCESS_TOKEN
+#    - 如果启用了加签，将密钥填入secret字段，替换YOUR_SECRET_KEY
+#
+# 2. 企微机器人：
+#    - 在企微群中添加群机器人
+#    - 复制Webhook地址到webhook字段，替换YOUR_KEY
+#
+# 3. 可以只启用其中一个或两个都启用
+# 4. enabled设为false可以禁用对应的机器人
+#
+# 安全提醒：
+# - 请勿将包含真实密钥的配置文件提交到Git仓库
+# - notification.yaml 文件已被添加到 .gitignore 中
+# - 生产环境建议使用环境变量或密钥管理服务
