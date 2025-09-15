@@ -16,25 +16,20 @@ import (
 )
 
 func main() {
+	// 加载配置
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
 	// 初始化日志
-	utilsLogger := utils.NewLogger(config.LogConfig{
-		Level:  "info",
-		Format: "text",
-	})
+	utilsLogger := utils.NewLogger(cfg.Log)
 
 	// 获取内部的logrus.Logger用于API handler
 	logrusLogger := utilsLogger.Logger
 
 	// 初始化数据库连接
-	dbConfig := &config.DatabaseConfig{
-		Host:     "192.168.1.238",
-		Port:     3306,
-		User:     "root",
-		Password: "123456",
-		Name:     "stock",
-	}
-
-	dbManager, err := database.NewDatabase(dbConfig, utilsLogger)
+	dbManager, err := database.NewDatabase(&cfg.Database, utilsLogger)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}

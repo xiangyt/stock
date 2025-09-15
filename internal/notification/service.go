@@ -24,7 +24,7 @@ func NewService(manager *Manager, logger *utils.Logger) *Service {
 
 // SendStockAlert 发送股票提醒
 func (s *Service) SendStockAlert(ctx context.Context, template *StockAlertTemplate) error {
-	s.logger.Infof("Sending stock alert for %s: %s", template.Stock.TSCode, template.AlertType)
+	s.logger.Infof("Sending stock alert for %s: %s", template.Stock.TsCode, template.AlertType)
 
 	// 发送Markdown格式消息
 	title, content := template.ToMarkdown()
@@ -33,7 +33,7 @@ func (s *Service) SendStockAlert(ctx context.Context, template *StockAlertTempla
 
 // SendPerformanceReport 发送业绩报表通知
 func (s *Service) SendPerformanceReport(ctx context.Context, template *PerformanceReportTemplate) error {
-	s.logger.Infof("Sending performance report for %s", template.Stock.TSCode)
+	s.logger.Infof("Sending performance report for %s", template.Stock.TsCode)
 
 	title, content := template.ToMarkdown()
 	return s.manager.SendMarkdownToAllBots(ctx, title, content)

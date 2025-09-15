@@ -48,7 +48,7 @@ func (t *StockAlertTemplate) generateTextContent() string {
 	var content strings.Builder
 
 	content.WriteString(fmt.Sprintf("📈 股票提醒 - %s\n", t.AlertType))
-	content.WriteString(fmt.Sprintf("股票代码: %s\n", t.Stock.TSCode))
+	content.WriteString(fmt.Sprintf("股票代码: %s\n", t.Stock.TsCode))
 	content.WriteString(fmt.Sprintf("股票名称: %s\n", t.Stock.Name))
 	content.WriteString(fmt.Sprintf("提醒原因: %s\n", t.AlertReason))
 	content.WriteString(fmt.Sprintf("提醒时间: %s\n", t.Timestamp.Format("2006-01-02 15:04:05")))
@@ -68,7 +68,7 @@ func (t *StockAlertTemplate) generateMarkdownContent() string {
 	var content strings.Builder
 
 	content.WriteString(fmt.Sprintf("## 📈 股票提醒 - %s\n\n", t.AlertType))
-	content.WriteString(fmt.Sprintf("**股票代码**: %s\n\n", t.Stock.TSCode))
+	content.WriteString(fmt.Sprintf("**股票代码**: %s\n\n", t.Stock.TsCode))
 	content.WriteString(fmt.Sprintf("**股票名称**: %s\n\n", t.Stock.Name))
 	content.WriteString(fmt.Sprintf("**提醒原因**: %s\n\n", t.AlertReason))
 	content.WriteString(fmt.Sprintf("**提醒时间**: %s\n\n", t.Timestamp.Format("2006-01-02 15:04:05")))
@@ -88,7 +88,7 @@ func (t *StockAlertTemplate) generateMarkdownContent() string {
 // generateCardFields 生成卡片字段
 func (t *StockAlertTemplate) generateCardFields() []CardField {
 	fields := []CardField{
-		{Name: "股票代码", Value: t.Stock.TSCode, Short: true},
+		{Name: "股票代码", Value: t.Stock.TsCode, Short: true},
 		{Name: "股票名称", Value: t.Stock.Name, Short: true},
 		{Name: "提醒原因", Value: t.AlertReason, Short: false},
 		{Name: "提醒时间", Value: t.Timestamp.Format("2006-01-02 15:04:05"), Short: true},
@@ -130,7 +130,7 @@ type PerformanceReportTemplate struct {
 
 // ToMarkdown 转换为Markdown消息
 func (t *PerformanceReportTemplate) ToMarkdown() (string, string) {
-	title := fmt.Sprintf("业绩报表 - %s(%s)", t.Stock.Name, t.Stock.TSCode)
+	title := fmt.Sprintf("业绩报表 - %s(%s)", t.Stock.Name, t.Stock.TsCode)
 	content := t.generateMarkdownContent()
 	return title, content
 }
@@ -139,7 +139,7 @@ func (t *PerformanceReportTemplate) ToMarkdown() (string, string) {
 func (t *PerformanceReportTemplate) generateMarkdownContent() string {
 	var content strings.Builder
 
-	content.WriteString(fmt.Sprintf("## 📊 业绩报表 - %s(%s)\n\n", t.Stock.Name, t.Stock.TSCode))
+	content.WriteString(fmt.Sprintf("## 📊 业绩报表 - %s(%s)\n\n", t.Stock.Name, t.Stock.TsCode))
 	content.WriteString(fmt.Sprintf("**报告期**: %s\n\n", t.Report.ReportDate.Format("2006-01-02")))
 
 	content.WriteString("### 每股指标\n")
@@ -163,7 +163,9 @@ func (t *PerformanceReportTemplate) generateMarkdownContent() string {
 		content.WriteString(fmt.Sprintf("- **股息率**: %.2f%%\n\n", t.Report.DividendYield))
 	}
 
-	content.WriteString(fmt.Sprintf("**公告日期**: %s\n", t.Report.NoticeDate.Format("2006-01-02")))
+	if t.Report.LatestAnnouncementDate != nil {
+		content.WriteString(fmt.Sprintf("**公告日期**: %s\n", t.Report.LatestAnnouncementDate.Format("2006-01-02")))
+	}
 
 	return content.String()
 }

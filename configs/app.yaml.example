@@ -1,0 +1,84 @@
+# 智能选股系统配置文件模板
+# 复制此文件为 app.yaml 并根据实际环境修改配置
+
+# 应用配置
+app:
+  name: "智能选股系统"
+  version: "1.0.0"
+  env: "development"  # development, production, test
+  port: 8080
+  debug: true
+
+# 服务器配置
+server:
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 60s
+  max_header_bytes: 1048576
+
+# 数据库配置 - MySQL
+database:
+  driver: "mysql"
+  host: "localhost"  # 修改为你的MySQL服务器地址
+  port: 3306
+  name: "stock"         # 数据库名称
+  user: "root"          # 数据库用户名
+  password: "123456"    # 数据库密码，建议使用环境变量 STOCK_DATABASE_PASSWORD
+  ssl_mode: "disable"   # MySQL SSL模式：disable, require, verify-ca, verify-full
+  max_open_conns: 25    # 最大打开连接数
+  max_idle_conns: 5     # 最大空闲连接数
+  conn_max_lifetime: 300s  # 连接最大生存时间
+
+# Redis配置
+redis:
+  host: "localhost"     # Redis服务器地址
+  port: 6379
+  password: ""          # Redis密码，如果有的话
+  db: 0                 # Redis数据库编号
+  pool_size: 10         # 连接池大小
+  min_idle_conns: 5     # 最小空闲连接数
+
+# 日志配置
+log:
+  level: "info"         # debug, info, warn, error
+  format: "json"        # json, text
+  file: "logs/app.log"  # 日志文件路径
+  max_size: 100         # 单个日志文件最大大小(MB)
+  max_backups: 7        # 保留的日志文件数量
+  max_age: 30           # 日志文件保留天数
+  compress: true        # 是否压缩旧日志文件
+
+# JWT配置
+jwt:
+  secret: "your_jwt_secret_here_change_in_production"  # JWT密钥，生产环境必须修改
+  expire_hours: 24      # JWT过期时间(小时)
+  issuer: "stock"       # JWT签发者
+
+# 限流配置
+rate_limit:
+  enabled: true         # 是否启用限流
+  rps: 100             # 每秒请求数限制
+  burst: 200           # 突发请求数限制
+
+# 监控配置
+metrics:
+  enabled: true         # 是否启用监控指标
+  port: 9090           # 监控端口
+  path: "/metrics"     # 监控路径
+
+# CORS配置
+cors:
+  allowed_origins: ["*"]  # 允许的源，生产环境建议指定具体域名
+  allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  allowed_headers: ["*"]
+  exposed_headers: []
+  allow_credentials: true
+  max_age: 86400       # 预检请求缓存时间(秒)
+
+# 环境变量说明：
+# 可以通过环境变量覆盖配置，环境变量格式为：STOCK_<SECTION>_<KEY>
+# 例如：
+# STOCK_DATABASE_HOST=localhost
+# STOCK_DATABASE_PASSWORD=your_password
+# STOCK_JWT_SECRET=your_secret_key
+# STOCK_APP_PORT=8080
