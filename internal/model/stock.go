@@ -43,47 +43,6 @@ func (DailyData) TableName() string {
 	return "daily_data"
 }
 
-// FinancialData 财务数据模型 - A股上市公司财务指标
-type FinancialData struct {
-	ID      uint      `json:"id" gorm:"primaryKey"`                  // 主键ID，数据库自增
-	TsCode  string    `json:"ts_code" gorm:"size:20;not null;index"` // 股票代码，如：000001.SZ
-	EndDate time.Time `json:"end_date" gorm:"not null;index"`        // 报告期结束日期，如：2023-12-31（年报）、2023-09-30（三季报）
-
-	// 基本每股指标
-	EPS          float64 `json:"eps" gorm:"type:decimal(10,4)"`            // 每股收益(基本)，单位：元
-	BPS          float64 `json:"bps" gorm:"type:decimal(10,4)"`            // 每股净资产，单位：元
-	CashPerShare float64 `json:"cash_per_share" gorm:"type:decimal(10,4)"` // 每股经营现金流，单位：元
-
-	// 收入利润指标
-	TotalRevenue      float64 `json:"total_revenue" gorm:"type:decimal(20,2)"`       // 营业总收入，单位：元
-	GrossProfit       float64 `json:"gross_profit" gorm:"type:decimal(20,2)"`        // 毛利润，单位：元
-	NetProfit         float64 `json:"net_profit" gorm:"type:decimal(20,2)"`          // 归母净利润，单位：元
-	DeductedNetProfit float64 `json:"deducted_net_profit" gorm:"type:decimal(20,2)"` // 扣非净利润，单位：元
-
-	// 盈利能力指标
-	ROE               float64 `json:"roe" gorm:"type:decimal(8,4)"`                 // 净资产收益率(摊薄)，单位：%，衡量股东权益回报率
-	ROA               float64 `json:"roa" gorm:"type:decimal(8,4)"`                 // 总资产收益率，单位：%，衡量资产使用效率
-	GrossProfitMargin float64 `json:"gross_profit_margin" gorm:"type:decimal(8,4)"` // 毛利率，单位：%，(营业收入-营业成本)/营业收入
-	NetProfitMargin   float64 `json:"net_profit_margin" gorm:"type:decimal(8,4)"`   // 净利率，单位：%，净利润/营业收入
-
-	// 成长能力指标
-	RevenueGrowthYoY        float64 `json:"revenue_growth_yoy" gorm:"type:decimal(8,4)"`         // 营业总收入同比增长，单位：%
-	NetProfitGrowthYoY      float64 `json:"net_profit_growth_yoy" gorm:"type:decimal(8,4)"`      // 归母净利润同比增长，单位：%
-	DeductedProfitGrowthYoY float64 `json:"deducted_profit_growth_yoy" gorm:"type:decimal(8,4)"` // 扣非净利润同比增长，单位：%
-
-	// 估值指标
-	DebtToAssets float64 `json:"debt_to_assets" gorm:"type:decimal(8,4)"` // 资产负债率，单位：%，总负债/总资产，衡量财务风险
-	PERatio      float64 `json:"pe_ratio" gorm:"type:decimal(10,2)"`      // 市盈率，股价/每股收益，衡量估值水平
-	PBRatio      float64 `json:"pb_ratio" gorm:"type:decimal(10,2)"`      // 市净率，股价/每股净资产，衡量账面价值
-
-	CreatedAt time.Time `json:"created_at"` // 记录创建时间
-}
-
-// TableName 指定表名
-func (FinancialData) TableName() string {
-	return "financial_data"
-}
-
 // TechnicalIndicator 技术指标模型 - A股技术分析指标
 type TechnicalIndicator struct {
 	ID         uint    `json:"id" gorm:"primaryKey"`                  // 主键ID，数据库自增

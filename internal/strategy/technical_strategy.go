@@ -83,7 +83,7 @@ func (s *TechnicalStrategy) calculateTechnicalScore(stock model.Stock, dailyData
 	// 简单排序（实际项目中应该使用更高效的排序）
 	for i := 0; i < len(sortedData)-1; i++ {
 		for j := i + 1; j < len(sortedData); j++ {
-			if sortedData[i].TradeDate.Before(sortedData[j].TradeDate) {
+			if sortedData[i].TradeDate < sortedData[j].TradeDate {
 				sortedData[i], sortedData[j] = sortedData[j], sortedData[i]
 			}
 		}
