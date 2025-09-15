@@ -21,6 +21,7 @@ build/
 dist/
 *.tar.gz
 *.zip
+bin/
 
 # IDE
 .vscode/
