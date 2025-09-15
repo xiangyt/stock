@@ -82,7 +82,7 @@ func main() {
 
 	// 测试获取财务数据
 	fmt.Printf("\n5. 获取财务数据: %s...\n", testStock.TsCode)
-	financialData, err := eastMoneyCollector.GetFinancialData(testStock.TsCode)
+	financialData, err := eastMoneyCollector.GetPerformanceReports(testStock.TsCode)
 	if err != nil {
 		fmt.Printf("❌ 获取财务数据失败: %v\n", err)
 	} else {

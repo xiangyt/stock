@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"stock/internal/model"
 	"stock/internal/notification"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,7 @@ func (h *NotificationHandler) SendTextMessage(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		Error(c, http.StatusBadRequest, "参数错误")
 		return
 	}
 
@@ -48,13 +49,13 @@ func (h *NotificationHandler) SendTextMessage(c *gin.Context) {
 		}
 
 		if err := h.service.SendToBotType(ctx, botType, message); err != nil {
-			Error(c, http.StatusInternalServerError, "发送消息失败", err.Error())
+			Error(c, http.StatusInternalServerError, "发送消息失败")
 			return
 		}
 	} else {
 		// 发送到所有机器人
 		if err := h.service.SendTextMessage(ctx, req.Content, req.AtMobiles, req.AtAll); err != nil {
-			Error(c, http.StatusInternalServerError, "发送消息失败", err.Error())
+			Error(c, http.StatusInternalServerError, "发送消息失败")
 			return
 		}
 	}
@@ -71,14 +72,14 @@ func (h *NotificationHandler) SendMarkdownMessage(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		Error(c, http.StatusBadRequest, "参数错误")
 		return
 	}
 
 	ctx := c.Request.Context()
 
 	if err := h.service.SendMarkdownMessage(ctx, req.Title, req.Content); err != nil {
-		Error(c, http.StatusInternalServerError, "发送Markdown消息失败", err.Error())
+		Error(c, http.StatusInternalServerError, "发送Markdown消息失败")
 		return
 	}
 
@@ -96,13 +97,13 @@ func (h *NotificationHandler) SendStockAlert(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		Error(c, http.StatusBadRequest, "参数错误")
 		return
 	}
 
-	// 创建模拟股票对象
-	stock := &MockStock{
-		TSCode: req.TSCode,
+	// 创建股票对象
+	stock := &model.Stock{
+		TsCode: req.TSCode,
 		Name:   req.StockName,
 	}
 
@@ -116,7 +117,7 @@ func (h *NotificationHandler) SendStockAlert(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	if err := h.service.SendStockAlert(ctx, template); err != nil {
-		Error(c, http.StatusInternalServerError, "发送股票提醒失败", err.Error())
+		Error(c, http.StatusInternalServerError, "发送股票提醒失败")
 		return
 	}
 
@@ -133,7 +134,7 @@ func (h *NotificationHandler) SendSystemNotification(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		Error(c, http.StatusBadRequest, "参数错误")
 		return
 	}
 
@@ -151,7 +152,7 @@ func (h *NotificationHandler) SendSystemNotification(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	if err := h.service.SendSystemNotification(ctx, template); err != nil {
-		Error(c, http.StatusInternalServerError, "发送系统通知失败", err.Error())
+		Error(c, http.StatusInternalServerError, "发送系统通知失败")
 		return
 	}
 
@@ -175,15 +176,9 @@ func (h *NotificationHandler) GetBotStatus(c *gin.Context) {
 func (h *NotificationHandler) SendHealthCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	if err := h.service.SendHealthCheck(ctx); err != nil {
-		Error(c, http.StatusInternalServerError, "发送健康检查失败", err.Error())
+		Error(c, http.StatusInternalServerError, "发送健康检查失败")
 		return
 	}
 
 	Success(c, gin.H{"message": "健康检查发送成功"})
-}
-
-// MockStock 模拟股票结构（临时使用，实际应该使用 model.Stock）
-type MockStock struct {
-	TSCode string `json:"tsCode"`
-	Name   string `json:"name"`
 }

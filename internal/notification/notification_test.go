@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"stock/internal/config"
+	"stock/internal/model"
 	"stock/internal/utils"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +14,10 @@ import (
 
 func TestNotificationManager(t *testing.T) {
 	// 创建logger
-	logger := utils.NewLogger("test", "debug")
+	logger := utils.NewLogger(config.LogConfig{
+		Level:  "debug",
+		Format: "text",
+	})
 
 	// 创建管理器
 	manager := NewManager(logger)
@@ -39,7 +44,10 @@ func TestNotificationManager(t *testing.T) {
 }
 
 func TestNotificationFactory(t *testing.T) {
-	logger := utils.NewLogger("test", "debug")
+	logger := utils.NewLogger(config.LogConfig{
+		Level:  "debug",
+		Format: "text",
+	})
 	factory := NewFactory(logger)
 
 	// 测试配置
@@ -69,8 +77,8 @@ func TestNotificationFactory(t *testing.T) {
 
 func TestStockAlertTemplate(t *testing.T) {
 	template := &StockAlertTemplate{
-		Stock: &MockStock{
-			TSCode: "000001.SZ",
+		Stock: &model.Stock{
+			TsCode: "000001.SZ",
 			Name:   "平安银行",
 		},
 		AlertType:   "买入",
@@ -124,10 +132,4 @@ func (m *MockBot) SendCard(ctx context.Context, card *Card) error {
 
 func (m *MockBot) GetBotType() BotType {
 	return m.botType
-}
-
-// MockStock 模拟股票
-type MockStock struct {
-	TSCode string
-	Name   string
 }
