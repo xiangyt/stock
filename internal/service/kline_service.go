@@ -6,6 +6,7 @@ import (
 
 	"stock/internal/collector"
 	"stock/internal/model"
+	"stock/internal/utils"
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -16,14 +17,17 @@ type KLineService struct {
 	db               *gorm.DB
 	logger           *logrus.Logger
 	collectorManager *collector.CollectorManager
+	dailyManager     *DailyKLineManager
 }
 
 // NewKLineService 创建K线数据服务
 func NewKLineService(db *gorm.DB, logger *logrus.Logger, collectorManager *collector.CollectorManager) *KLineService {
+	utilsLogger := &utils.Logger{Logger: logger}
 	return &KLineService{
 		db:               db,
 		logger:           logger,
 		collectorManager: collectorManager,
+		dailyManager:     NewDailyKLineManager(db, utilsLogger),
 	}
 }
 
@@ -47,16 +51,7 @@ func formatDateInt(dateInt int) string {
 
 // GetKLineData 从数据库获取K线数据（只查询，不刷新）
 func (s *KLineService) GetKLineData(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error) {
-	// 转换时间为int格式 (YYYYMMDD)
-	startDateInt := dateToInt(startDate)
-	endDateInt := dateToInt(endDate)
-
-	var dailyData []model.DailyData
-	err := s.db.Where("ts_code = ? AND trade_date >= ? AND trade_date <= ?",
-		tsCode, startDateInt, endDateInt).
-		Order("trade_date ASC").
-		Find(&dailyData).Error
-
+	dailyData, err := s.dailyManager.GetDailyData(tsCode, startDate, endDate, 0)
 	if err != nil {
 		s.logger.Errorf("Failed to get daily data from database: %v", err)
 		return nil, err
@@ -93,7 +88,7 @@ func (s *KLineService) RefreshKLineData(tsCode string, startDate, endDate time.T
 // GetDataRange 获取数据库中K线数据的时间范围和数量
 func (s *KLineService) GetDataRange(tsCode string) (startDate, endDate time.Time, count int64, err error) {
 	// 获取数据数量
-	err = s.db.Model(&model.DailyData{}).Where("ts_code = ?", tsCode).Count(&count).Error
+	count, err = s.dailyManager.GetDailyDataCount(tsCode)
 	if err != nil {
 		return
 	}
@@ -102,19 +97,8 @@ func (s *KLineService) GetDataRange(tsCode string) (startDate, endDate time.Time
 		return
 	}
 
-	// 获取时间范围 - 注意这里查询的是int类型的trade_date
-	var startDateInt, endDateInt int
-	err = s.db.Model(&model.DailyData{}).Where("ts_code = ?", tsCode).
-		Select("MIN(trade_date) as start_date, MAX(trade_date) as end_date").
-		Row().Scan(&startDateInt, &endDateInt)
-
-	if err != nil {
-		return
-	}
-
-	// 转换为time.Time
-	startDate = intToDate(startDateInt)
-	endDate = intToDate(endDateInt)
+	// 获取时间范围
+	startDate, endDate, err = s.dailyManager.GetDateRange(tsCode)
 	return
 }
 
@@ -124,39 +108,27 @@ func (s *KLineService) saveDailyDataToDB(tsCode string, data []model.DailyData, 
 		return nil
 	}
 
-	// 转换时间范围为int格式
-	startDateInt := dateToInt(startDate)
-	endDateInt := dateToInt(endDate)
+	// 设置创建时间
+	for i := range data {
+		data[i].TsCode = tsCode
+		data[i].CreatedAt = time.Now().Unix()
+	}
 
-	// 先删除指定时间范围内的旧数据
-	if err := s.db.Where("ts_code = ? AND trade_date >= ? AND trade_date <= ?",
-		tsCode, startDateInt, endDateInt).Delete(&model.DailyData{}).Error; err != nil {
-		s.logger.Errorf("Failed to delete old daily data for %s: %v", tsCode, err)
+	// 使用DailyKLineManager保存数据到对应的交易所表
+	err := s.dailyManager.UpsertDailyData(data)
+	if err != nil {
+		s.logger.Errorf("Failed to save daily data for %s: %v", tsCode, err)
 		return err
 	}
 
-	// 批量插入新数据
-	savedCount := 0
-	for _, item := range data {
-		// 确保股票代码正确
-		item.TsCode = tsCode
-		item.CreatedAt = time.Now().Unix()
-
-		if err := s.db.Create(&item).Error; err != nil {
-			s.logger.Errorf("Failed to save daily data for %s on %s: %v", tsCode, formatDateInt(item.TradeDate), err)
-		} else {
-			savedCount++
-		}
-	}
-
-	s.logger.Infof("Saved %d/%d daily data records for %s", savedCount, len(data), tsCode)
+	s.logger.Infof("Saved %d daily data records for %s", len(data), tsCode)
 	return nil
 }
 
 // GetDataStats 获取数据统计信息
 func (s *KLineService) GetDataStats(tsCode string) (map[string]interface{}, error) {
-	var count int64
-	if err := s.db.Model(&model.DailyData{}).Where("ts_code = ?", tsCode).Count(&count).Error; err != nil {
+	count, err := s.dailyManager.GetDailyDataCount(tsCode)
+	if err != nil {
 		return nil, err
 	}
 
@@ -168,18 +140,16 @@ func (s *KLineService) GetDataStats(tsCode string) (map[string]interface{}, erro
 		}, nil
 	}
 
-	var startDateInt, endDateInt int
-	if err := s.db.Model(&model.DailyData{}).Where("ts_code = ?", tsCode).
-		Select("MIN(trade_date) as start_date, MAX(trade_date) as end_date").
-		Row().Scan(&startDateInt, &endDateInt); err != nil {
+	startDate, endDate, err := s.dailyManager.GetDateRange(tsCode)
+	if err != nil {
 		return nil, err
 	}
 
 	return map[string]interface{}{
 		"ts_code":          tsCode,
 		"daily_data_count": count,
-		"data_start_date":  formatDateInt(startDateInt),
-		"data_end_date":    formatDateInt(endDateInt),
+		"data_start_date":  startDate.Format("2006-01-02"),
+		"data_end_date":    endDate.Format("2006-01-02"),
 		"last_updated":     time.Now().Format("2006-01-02 15:04:05"),
 	}, nil
 }
@@ -234,7 +204,7 @@ func (s *KLineService) SyncDailyDataForStock(stockCode string, months int) error
 	s.logger.Infof("Starting to sync daily K-line data for %s to database...", stockCode)
 
 	// 获取采集器
-	collector, err := s.collectorManager.GetCollector("eastmoney")
+	c, err := s.collectorManager.GetCollector("eastmoney")
 	if err != nil {
 		return fmt.Errorf("eastmoney collector not found: %w", err)
 	}
@@ -247,7 +217,7 @@ func (s *KLineService) SyncDailyDataForStock(stockCode string, months int) error
 		stockCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
 
 	// 从API获取日K数据
-	dailyData, err := collector.GetDailyKLine(stockCode, startDate, endDate)
+	dailyData, err := c.GetDailyKLine(stockCode, startDate, endDate)
 	if err != nil {
 		return fmt.Errorf("failed to get daily K-line data from API: %w", err)
 	}

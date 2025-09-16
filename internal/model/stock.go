@@ -38,9 +38,44 @@ type DailyData struct {
 	CreatedAt int64   `json:"created_at"`                            // 记录创建时间戳
 }
 
-// TableName 指定表名
-func (DailyData) TableName() string {
-	return "daily_data"
+// TableName 指定表名 - 根据股票代码动态选择表名
+func (d DailyData) TableName() string {
+	// 根据股票代码判断交易所
+	if d.getExchange() == "SH" {
+		return "daily_data_sh"
+	}
+	return "daily_data_sz"
+}
+
+// getExchange 根据股票代码获取交易所类型
+func (d DailyData) getExchange() string {
+	tsCode := d.TsCode
+	if len(tsCode) == 0 {
+		return "SH" // 默认上海
+	}
+
+	// 检查后缀
+	if len(tsCode) > 3 {
+		if tsCode[len(tsCode)-3:] == ".SH" {
+			return "SH"
+		}
+		if tsCode[len(tsCode)-3:] == ".SZ" {
+			return "SZ"
+		}
+	}
+
+	// 根据代码前缀判断
+	if len(tsCode) > 0 {
+		firstChar := tsCode[0]
+		if firstChar == '6' {
+			return "SH"
+		}
+		if firstChar == '0' || firstChar == '3' {
+			return "SZ"
+		}
+	}
+
+	return "SH" // 默认上海
 }
 
 // WeeklyData 周K线数据模型 - A股周K线行情数据
