@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"stock/internal/model"
@@ -17,12 +18,25 @@ type DailyKLineManager struct {
 	logger *utils.Logger
 }
 
-// NewDailyKLineManager 创建日K线数据管理器
+var (
+	dailyKLineManagerInstance *DailyKLineManager
+	dailyKLineManagerOnce     sync.Once
+)
+
+// GetDailyKLineManager 获取日K线数据管理器单例
+func GetDailyKLineManager(db *gorm.DB, logger *utils.Logger) *DailyKLineManager {
+	dailyKLineManagerOnce.Do(func() {
+		dailyKLineManagerInstance = &DailyKLineManager{
+			db:     db,
+			logger: logger,
+		}
+	})
+	return dailyKLineManagerInstance
+}
+
+// NewDailyKLineManager 创建日K线数据管理器 (保持向后兼容)
 func NewDailyKLineManager(db *gorm.DB, logger *utils.Logger) *DailyKLineManager {
-	return &DailyKLineManager{
-		db:     db,
-		logger: logger,
-	}
+	return GetDailyKLineManager(db, logger)
 }
 
 // getExchange 根据股票代码获取交易所类型

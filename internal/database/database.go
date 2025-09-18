@@ -82,6 +82,11 @@ func (d *Database) AutoMigrate() error {
 	models := []interface{}{
 		&model.Stock{},              // 基础表，无外键依赖
 		&model.DailyData{},          // 依赖Stock
+		&model.WeeklyData{},         // 依赖Stock
+		&model.MonthlyData{},        // 依赖Stock
+		&model.YearlyData{},         // 依赖Stock
+		&model.PerformanceReport{},  // 依赖Stock
+		&model.ShareholderCount{},   // 依赖Stock
 		&model.TechnicalIndicator{}, // 依赖Stock
 		&model.Strategy{},           // 独立表
 		&model.Portfolio{},          // 独立表

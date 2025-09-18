@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"stock/internal/collector"
@@ -21,15 +22,33 @@ type DataService struct {
 	collectorFactory *collector.CollectorFactory
 }
 
-// NewDataService 创建数据服务
+var (
+	dataServiceInstance *DataService
+	dataServiceOnce     sync.Once
+)
+
+// GetDataService 获取数据服务单例
+func GetDataService(db *gorm.DB, logger *utils.Logger) *DataService {
+	dataServiceOnce.Do(func() {
+		dataServiceInstance = &DataService{
+			db:               db,
+			logger:           logger,
+			stockRepo:        repository.NewStockRepository(db, logger),
+			dailyDataRepo:    repository.NewDailyDataRepository(db, logger),
+			collectorFactory: collector.NewCollectorFactory(logger),
+		}
+	})
+	return dataServiceInstance
+}
+
+// NewDataService 创建数据服务 (保持向后兼容)
 func NewDataService(db *gorm.DB, logger *utils.Logger) *DataService {
-	return &DataService{
-		db:               db,
-		logger:           logger,
-		stockRepo:        repository.NewStockRepository(db, logger),
-		dailyDataRepo:    repository.NewDailyDataRepository(db, logger),
-		collectorFactory: collector.NewCollectorFactory(logger),
-	}
+	return GetDataService(db, logger)
+}
+
+// GetDB 获取数据库连接
+func (s *DataService) GetDB() *gorm.DB {
+	return s.db
 }
 
 // SyncStockList 同步股票列表
@@ -63,6 +82,226 @@ func (s *DataService) SyncStockList() error {
 
 	s.logger.Infof("Successfully synchronized %d stocks", len(stocks))
 	return nil
+}
+
+// GetAllStocks 获取所有股票列表
+func (s *DataService) GetAllStocks() ([]*model.Stock, error) {
+	stocks, err := s.stockRepo.GetAllStocks()
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为指针切片
+	result := make([]*model.Stock, len(stocks))
+	for i := range stocks {
+		result[i] = &stocks[i]
+	}
+	return result, nil
+}
+
+// UpdateStockStatus 更新股票状态
+func (s *DataService) UpdateStockStatus(tsCode string, isActive bool) error {
+	s.logger.Infof("更新股票 %s 状态为: %v", tsCode, isActive)
+
+	// 使用数据库直接更新股票状态
+	result := s.db.Model(&model.Stock{}).Where("ts_code = ?", tsCode).Update("is_active", isActive)
+	if result.Error != nil {
+		return fmt.Errorf("更新股票状态失败: %v", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("未找到股票 %s", tsCode)
+	}
+
+	s.logger.Infof("成功更新股票 %s 状态为: %v", tsCode, isActive)
+	return nil
+}
+
+// SyncDailyData 同步日K线数据
+func (s *DataService) SyncDailyData(tsCode string, startDate, endDate time.Time) (int, error) {
+	s.logger.Infof("开始同步股票 %s 的日K线数据，时间范围: %s 到 %s",
+		tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+
+	// 创建东方财富采集器
+	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeEastMoney)
+	if err != nil {
+		return 0, fmt.Errorf("创建采集器失败: %v", err)
+	}
+
+	// 连接数据源
+	if err := eastMoney.Connect(); err != nil {
+		return 0, fmt.Errorf("连接数据源失败: %v", err)
+	}
+	defer eastMoney.Disconnect()
+
+	// 获取日K线数据
+	klineData, err := eastMoney.GetDailyKLine(tsCode, startDate, endDate)
+	if err != nil {
+		return 0, fmt.Errorf("获取日K线数据失败: %v", err)
+	}
+
+	if len(klineData) == 0 {
+		s.logger.Debugf("股票 %s 在指定时间范围内没有日K线数据", tsCode)
+		return 0, nil
+	}
+
+	// 批量保存数据
+	if err := s.dailyDataRepo.UpsertDailyData(klineData); err != nil {
+		return 0, fmt.Errorf("保存日K线数据失败: %v", err)
+	}
+
+	s.logger.Infof("成功同步股票 %s 的日K线数据，共 %d 条记录", tsCode, len(klineData))
+	return len(klineData), nil
+}
+
+// SyncWeeklyData 同步周K线数据
+func (s *DataService) SyncWeeklyData(tsCode string, startDate, endDate time.Time) (int, error) {
+	s.logger.Infof("开始同步股票 %s 的周K线数据，时间范围: %s 到 %s",
+		tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+
+	// 创建东方财富采集器
+	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeEastMoney)
+	if err != nil {
+		return 0, fmt.Errorf("创建采集器失败: %v", err)
+	}
+
+	// 连接数据源
+	if err := eastMoney.Connect(); err != nil {
+		return 0, fmt.Errorf("连接数据源失败: %v", err)
+	}
+	defer eastMoney.Disconnect()
+
+	// 获取周K线数据
+	klineData, err := eastMoney.GetWeeklyKLine(tsCode, startDate, endDate)
+	if err != nil {
+		return 0, fmt.Errorf("获取周K线数据失败: %v", err)
+	}
+
+	if len(klineData) == 0 {
+		s.logger.Debugf("股票 %s 在指定时间范围内没有周K线数据", tsCode)
+		return 0, nil
+	}
+
+	// 使用KLinePersistenceService保存周K线数据
+	klinePersistence := GetKLinePersistenceService(s.db, s.logger)
+	for _, data := range klineData {
+		weeklyData := model.WeeklyData{
+			TsCode:    data.TsCode,
+			TradeDate: data.TradeDate,
+			Open:      data.Open,
+			High:      data.High,
+			Low:       data.Low,
+			Close:     data.Close,
+			Volume:    data.Volume,
+			Amount:    data.Amount,
+		}
+		if err := klinePersistence.SaveWeeklyData(weeklyData); err != nil {
+			return 0, fmt.Errorf("保存周K线数据失败: %v", err)
+		}
+	}
+
+	s.logger.Infof("成功同步股票 %s 的周K线数据，共 %d 条记录", tsCode, len(klineData))
+	return len(klineData), nil
+}
+
+// SyncMonthlyData 同步月K线数据
+func (s *DataService) SyncMonthlyData(tsCode string, startDate, endDate time.Time) (int, error) {
+	s.logger.Infof("开始同步股票 %s 的月K线数据，时间范围: %s 到 %s",
+		tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+
+	// 创建东方财富采集器
+	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeEastMoney)
+	if err != nil {
+		return 0, fmt.Errorf("创建采集器失败: %v", err)
+	}
+
+	// 连接数据源
+	if err := eastMoney.Connect(); err != nil {
+		return 0, fmt.Errorf("连接数据源失败: %v", err)
+	}
+	defer eastMoney.Disconnect()
+
+	// 获取月K线数据
+	klineData, err := eastMoney.GetMonthlyKLine(tsCode, startDate, endDate)
+	if err != nil {
+		return 0, fmt.Errorf("获取月K线数据失败: %v", err)
+	}
+
+	if len(klineData) == 0 {
+		s.logger.Debugf("股票 %s 在指定时间范围内没有月K线数据", tsCode)
+		return 0, nil
+	}
+
+	// 使用KLinePersistenceService保存月K线数据
+	klinePersistence := GetKLinePersistenceService(s.db, s.logger)
+	for _, data := range klineData {
+		monthlyData := model.MonthlyData{
+			TsCode:    data.TsCode,
+			TradeDate: data.TradeDate,
+			Open:      data.Open,
+			High:      data.High,
+			Low:       data.Low,
+			Close:     data.Close,
+			Volume:    data.Volume,
+			Amount:    data.Amount,
+		}
+		if err := klinePersistence.SaveMonthlyData(monthlyData); err != nil {
+			return 0, fmt.Errorf("保存月K线数据失败: %v", err)
+		}
+	}
+
+	s.logger.Infof("成功同步股票 %s 的月K线数据，共 %d 条记录", tsCode, len(klineData))
+	return len(klineData), nil
+}
+
+// SyncYearlyData 同步年K线数据
+func (s *DataService) SyncYearlyData(tsCode string, startDate, endDate time.Time) (int, error) {
+	s.logger.Infof("开始同步股票 %s 的年K线数据，时间范围: %s 到 %s",
+		tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+
+	// 创建东方财富采集器
+	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeEastMoney)
+	if err != nil {
+		return 0, fmt.Errorf("创建采集器失败: %v", err)
+	}
+
+	// 连接数据源
+	if err := eastMoney.Connect(); err != nil {
+		return 0, fmt.Errorf("连接数据源失败: %v", err)
+	}
+	defer eastMoney.Disconnect()
+
+	// 获取年K线数据
+	klineData, err := eastMoney.GetYearlyKLine(tsCode, startDate, endDate)
+	if err != nil {
+		return 0, fmt.Errorf("获取年K线数据失败: %v", err)
+	}
+
+	if len(klineData) == 0 {
+		s.logger.Debugf("股票 %s 在指定时间范围内没有年K线数据", tsCode)
+		return 0, nil
+	}
+
+	// 使用KLinePersistenceService保存年K线数据
+	klinePersistence := GetKLinePersistenceService(s.db, s.logger)
+	for _, data := range klineData {
+		yearlyData := model.YearlyData{
+			TsCode:    data.TsCode,
+			TradeDate: data.TradeDate,
+			Open:      data.Open,
+			High:      data.High,
+			Low:       data.Low,
+			Close:     data.Close,
+			Volume:    data.Volume,
+			Amount:    data.Amount,
+		}
+		if err := klinePersistence.SaveYearlyData(yearlyData); err != nil {
+			return 0, fmt.Errorf("保存年K线数据失败: %v", err)
+		}
+	}
+
+	s.logger.Infof("成功同步股票 %s 的年K线数据，共 %d 条记录", tsCode, len(klineData))
+	return len(klineData), nil
 }
 
 // SyncRealtimeData 同步实时数据

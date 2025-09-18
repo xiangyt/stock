@@ -386,7 +386,7 @@ func (h *HTTPCollector) GetLatestPerformanceReport(tsCode string) (*model.Perfor
 	// 返回最新的业绩报表数据
 	latest := reports[0]
 	for _, report := range reports {
-		if report.ReportDate.After(latest.ReportDate) {
+		if report.ReportDate > latest.ReportDate {
 			latest = report
 		}
 	}
@@ -416,7 +416,7 @@ func (h *HTTPCollector) GetLatestShareholderCount(tsCode string) (*model.Shareho
 	// 返回最新的股东户数数据
 	latest := counts[0]
 	for _, count := range counts {
-		if count.EndDate.After(latest.EndDate) {
+		if count.EndDate > latest.EndDate {
 			latest = count
 		}
 	}

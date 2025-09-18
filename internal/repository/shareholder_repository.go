@@ -68,7 +68,6 @@ func (r *ShareholderRepository) UpsertBatch(counts []*model.ShareholderCount) er
 				return fmt.Errorf("查询股东户数记录失败: %v", err)
 			} else {
 				// 记录存在，更新记录
-				count.ID = existing.ID
 				count.CreatedAt = existing.CreatedAt
 				if err := tx.Save(count).Error; err != nil {
 					return fmt.Errorf("更新股东户数记录失败: %v", err)

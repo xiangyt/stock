@@ -270,6 +270,25 @@ func parseTimeString(timeStr string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
+// parseTimeToInt 将时间字符串解析为 YYYYMMDD 格式的整数
+func parseTimeToInt(timeStr string) (int, bool) {
+	if timeStr == "" {
+		return 0, false
+	}
+
+	// 先使用现有的 parseTimeString 函数解析时间
+	if parsedTime, success := parseTimeString(timeStr); success {
+		// 转换为 YYYYMMDD 格式的整数
+		year := parsedTime.Year()
+		month := int(parsedTime.Month())
+		day := parsedTime.Day()
+		dateInt := year*10000 + month*100 + day
+		return dateInt, true
+	}
+
+	return 0, false
+}
+
 // GetStockList 获取股票列表
 func (e *EastMoneyCollector) GetStockList() ([]model.Stock, error) {
 	e.logger.Info("Fetching stock list from EastMoney...")
@@ -830,7 +849,7 @@ func (e *EastMoneyCollector) GetLatestPerformanceReport(tsCode string) (*model.P
 	// 返回最新的业绩报表数据（假设数据已按日期排序）
 	latest := reports[0]
 	for _, report := range reports {
-		if report.ReportDate.After(latest.ReportDate) {
+		if report.ReportDate > latest.ReportDate {
 			latest = report
 		}
 	}
@@ -882,7 +901,7 @@ func (e *EastMoneyCollector) convertToPerformanceReport(tsCode string, data map[
 
 	// 解析报告期
 	if reportDateStr, ok := data["REPORTDATE"].(string); ok {
-		if reportDate, success := parseTimeString(reportDateStr); success {
+		if reportDate, success := parseTimeToInt(reportDateStr); success {
 			report.ReportDate = reportDate
 		}
 	}
@@ -891,17 +910,17 @@ func (e *EastMoneyCollector) convertToPerformanceReport(tsCode string, data map[
 	report.EPS = parseFloat(data["BASIC_EPS"])              // 每股收益
 	report.WeightEPS = parseFloat(data["DEDUCT_BASIC_EPS"]) // 扣非每股收益
 
-	report.Revenue = parseFloat(data["TOTAL_OPERATE_INCOME"]) // 营业总收入
-	report.RevenueQoQ = parseFloat(data["YSHZ"])              // 营业收入同比增长
-	report.RevenueYoY = parseFloat(data["YSTZ"])              // 营业收入环比增长
+	report.Revenue = parseFloat(data["TOTAL_OPERATE_INCOME"])     // 营业总收入
+	report.RevenueQoQ = limitGrowthRate(parseFloat(data["YSHZ"])) // 营业收入同比增长
+	report.RevenueYoY = limitGrowthRate(parseFloat(data["YSTZ"])) // 营业收入环比增长
 
-	report.NetProfit = parseFloat(data["PARENT_NETPROFIT"]) // 净利润
-	report.NetProfitQoQ = parseFloat(data["SJLHZ"])         // 净利润同比增长
-	report.NetProfitYoY = parseFloat(data["SJLTZ"])         // 净利润环比增长
+	report.NetProfit = parseFloat(data["PARENT_NETPROFIT"])          // 净利润
+	report.NetProfitQoQ = limitGrowthRate(parseFloat(data["SJLHZ"])) // 净利润同比增长
+	report.NetProfitYoY = limitGrowthRate(parseFloat(data["SJLTZ"])) // 净利润环比增长
 
-	report.BVPS = parseFloat(data["BPS"])            // 每股净资产
-	report.GrossMargin = parseFloat(data["XSMLL"])   // 销售毛利率
-	report.DividendYield = parseFloat(data["ZXGXL"]) // 股息率
+	report.BVPS = parseFloat(data["BPS"])                             // 每股净资产
+	report.GrossMargin = limitGrowthRate(parseFloat(data["XSMLL"]))   // 销售毛利率
+	report.DividendYield = limitGrowthRate(parseFloat(data["ZXGXL"])) // 股息率
 
 	// 解析公告日期 - 根据实际API响应字段名称
 	if noticeDateStr, ok := data["NOTICE_DATE"].(string); ok {
@@ -918,6 +937,20 @@ func (e *EastMoneyCollector) convertToPerformanceReport(tsCode string, data map[
 	}
 
 	return report, nil
+}
+
+// limitGrowthRate 限制增长率在-9999到9999之间
+func limitGrowthRate(value float64) float64 {
+	const maxGrowthRate = 9999.0
+	const minGrowthRate = -9999.0
+
+	if value > maxGrowthRate {
+		return maxGrowthRate
+	}
+	if value < minGrowthRate {
+		return minGrowthRate
+	}
+	return value
 }
 
 // GetShareholderCounts 获取股东户数数据
@@ -1021,7 +1054,7 @@ func (e *EastMoneyCollector) GetLatestShareholderCount(tsCode string) (*model.Sh
 	// 返回最新的股东户数数据（假设数据已按日期排序）
 	latest := counts[0]
 	for _, count := range counts {
-		if count.EndDate.After(latest.EndDate) {
+		if count.EndDate > latest.EndDate {
 			latest = count
 		}
 	}
@@ -1039,13 +1072,16 @@ func (e *EastMoneyCollector) GetWeeklyKLine(tsCode string, startDate, endDate ti
 	result := make([]model.WeeklyData, 0, len(klines))
 	for _, kline := range klines {
 		if data, err := e.parser.ParseToWeekly(tsCode, kline); err == nil {
-			result = append(result, *data)
+			// 根据时间范围过滤数据
+			if e.isInDateRange(data.TradeDate, startDate, endDate) {
+				result = append(result, *data)
+			}
 		} else {
 			e.logger.Warnf("Failed to parse weekly K-line data: %v", err)
 		}
 	}
 
-	e.logger.Infof("Fetched %d weekly K-line records for %s", len(result), tsCode)
+	e.logger.Infof("Fetched %d weekly K-line records for %s (filtered from %d total)", len(result), tsCode, len(klines))
 	return result, nil
 }
 
@@ -1059,13 +1095,16 @@ func (e *EastMoneyCollector) GetMonthlyKLine(tsCode string, startDate, endDate t
 	result := make([]model.MonthlyData, 0, len(klines))
 	for _, kline := range klines {
 		if data, err := e.parser.ParseToMonthly(tsCode, kline); err == nil {
-			result = append(result, *data)
+			// 根据时间范围过滤数据
+			if e.isInDateRange(data.TradeDate, startDate, endDate) {
+				result = append(result, *data)
+			}
 		} else {
 			e.logger.Warnf("Failed to parse monthly K-line data: %v", err)
 		}
 	}
 
-	e.logger.Infof("Fetched %d monthly K-line records for %s", len(result), tsCode)
+	e.logger.Infof("Fetched %d monthly K-line records for %s (filtered from %d total)", len(result), tsCode, len(klines))
 	return result, nil
 }
 
@@ -1079,13 +1118,16 @@ func (e *EastMoneyCollector) GetYearlyKLine(tsCode string, startDate, endDate ti
 	result := make([]model.YearlyData, 0, len(klines))
 	for _, kline := range klines {
 		if data, err := e.parser.ParseToYearly(tsCode, kline); err == nil {
-			result = append(result, *data)
+			// 根据时间范围过滤数据
+			if e.isInDateRange(data.TradeDate, startDate, endDate) {
+				result = append(result, *data)
+			}
 		} else {
 			e.logger.Warnf("Failed to parse yearly K-line data: %v", err)
 		}
 	}
 
-	e.logger.Infof("Fetched %d yearly K-line records for %s", len(result), tsCode)
+	e.logger.Infof("Fetched %d yearly K-line records for %s (filtered from %d total)", len(result), tsCode, len(klines))
 	return result, nil
 }
 
@@ -1191,6 +1233,27 @@ func (e *EastMoneyCollector) extractJSONFromJSONP(body string) (string, error) {
 	return matches[1], nil
 }
 
+// isInDateRange 检查交易日期是否在指定的时间范围内
+func (e *EastMoneyCollector) isInDateRange(tradeDate int, startDate, endDate time.Time) bool {
+	// 将int类型的交易日期转换为time.Time
+	tradeDateStr := fmt.Sprintf("%d", tradeDate)
+	date, err := time.Parse("20060102", tradeDateStr)
+	if err != nil {
+		e.logger.Warnf("Failed to parse trade date %d: %v", tradeDate, err)
+		return false
+	}
+
+	// 检查是否在时间范围内
+	if !startDate.IsZero() && date.Before(startDate) {
+		return false
+	}
+	if !endDate.IsZero() && date.After(endDate) {
+		return false
+	}
+
+	return true
+}
+
 // convertToShareholderCount 转换股东户数数据
 func (e *EastMoneyCollector) convertToShareholderCount(tsCode string, data map[string]interface{}) (*model.ShareholderCount, error) {
 	count := &model.ShareholderCount{
@@ -1208,7 +1271,7 @@ func (e *EastMoneyCollector) convertToShareholderCount(tsCode string, data map[s
 
 	// 解析统计截止日期
 	if endDateStr, ok := data["END_DATE"].(string); ok {
-		if endDate, success := parseTimeString(endDateStr); success {
+		if endDate, success := parseTimeToInt(endDateStr); success {
 			count.EndDate = endDate
 		}
 	}
@@ -1250,7 +1313,7 @@ func (e *EastMoneyCollector) convertToShareholderCount(tsCode string, data map[s
 
 	// 解析上期截止日期
 	if preEndDateStr, ok := data["PRE_END_DATE"].(string); ok {
-		if preEndDate, success := parseTimeString(preEndDateStr); success {
+		if preEndDate, success := parseTimeToInt(preEndDateStr); success {
 			count.PreEndDate = &preEndDate
 		}
 		// 如果解析失败，保持为 nil（GORM会将其存储为NULL）

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"stock/internal/collector"
@@ -20,15 +21,28 @@ type KLineService struct {
 	dailyManager     *DailyKLineManager
 }
 
-// NewKLineService 创建K线数据服务
+var (
+	klineServiceInstance *KLineService
+	klineServiceOnce     sync.Once
+)
+
+// GetKLineService 获取K线数据服务单例
+func GetKLineService(db *gorm.DB, logger *logrus.Logger, collectorManager *collector.CollectorManager) *KLineService {
+	klineServiceOnce.Do(func() {
+		utilsLogger := &utils.Logger{Logger: logger}
+		klineServiceInstance = &KLineService{
+			db:               db,
+			logger:           logger,
+			collectorManager: collectorManager,
+			dailyManager:     GetDailyKLineManager(db, utilsLogger),
+		}
+	})
+	return klineServiceInstance
+}
+
+// NewKLineService 创建K线数据服务 (保持向后兼容)
 func NewKLineService(db *gorm.DB, logger *logrus.Logger, collectorManager *collector.CollectorManager) *KLineService {
-	utilsLogger := &utils.Logger{Logger: logger}
-	return &KLineService{
-		db:               db,
-		logger:           logger,
-		collectorManager: collectorManager,
-		dailyManager:     NewDailyKLineManager(db, utilsLogger),
-	}
+	return GetKLineService(db, logger, collectorManager)
 }
 
 // dateToInt 将time.Time转换为YYYYMMDD格式的int

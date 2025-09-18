@@ -5,6 +5,7 @@ import (
 	"stock/internal/utils"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // StockRepository 股票数据仓库
@@ -83,11 +84,23 @@ func (r *StockRepository) UpsertStocks(stocks []model.Stock) error {
 		}
 	}()
 
-	for _, stock := range stocks {
-		// 使用ON DUPLICATE KEY UPDATE语法
-		if err := tx.Save(&stock).Error; err != nil {
+	// 使用批量处理，每次处理100条记录
+	batchSize := 100
+	for i := 0; i < len(stocks); i += batchSize {
+		end := i + batchSize
+		if end > len(stocks) {
+			end = len(stocks)
+		}
+
+		batch := stocks[i:end]
+
+		// 使用Clauses来实现ON DUPLICATE KEY UPDATE
+		if err := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "ts_code"}},
+			DoUpdates: clause.AssignmentColumns([]string{"name", "area", "industry", "market", "list_date", "is_active", "updated_at"}),
+		}).Create(&batch).Error; err != nil {
 			tx.Rollback()
-			r.logger.Errorf("Failed to upsert stock %s: %v", stock.TsCode, err)
+			r.logger.Errorf("Failed to upsert stock batch: %v", err)
 			return err
 		}
 	}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"stock/internal/collector"
@@ -19,19 +20,37 @@ type PerformanceService struct {
 	logger    *utils.Logger
 }
 
-// NewPerformanceService 创建业绩报表服务实例
+var (
+	performanceServiceInstance *PerformanceService
+	performanceServiceOnce     sync.Once
+)
+
+// GetPerformanceService 获取业绩报表服务单例
+func GetPerformanceService(
+	repo *repository.PerformanceRepository,
+	stockRepo *repository.StockRepository,
+	collector collector.DataCollector,
+	logger *utils.Logger,
+) *PerformanceService {
+	performanceServiceOnce.Do(func() {
+		performanceServiceInstance = &PerformanceService{
+			repo:      repo,
+			stockRepo: stockRepo,
+			collector: collector,
+			logger:    logger,
+		}
+	})
+	return performanceServiceInstance
+}
+
+// NewPerformanceService 创建业绩报表服务实例 (保持向后兼容)
 func NewPerformanceService(
 	repo *repository.PerformanceRepository,
 	stockRepo *repository.StockRepository,
 	collector collector.DataCollector,
 	logger *utils.Logger,
 ) *PerformanceService {
-	return &PerformanceService{
-		repo:      repo,
-		stockRepo: stockRepo,
-		collector: collector,
-		logger:    logger,
-	}
+	return GetPerformanceService(repo, stockRepo, collector, logger)
 }
 
 // GetPerformanceReports 获取业绩报表数据
@@ -217,7 +236,7 @@ func (s *PerformanceService) ValidatePerformanceReport(report *model.Performance
 		return fmt.Errorf("ts_code is required")
 	}
 
-	if report.ReportDate.IsZero() {
+	if report.ReportDate == 0 {
 		return fmt.Errorf("report_date is required")
 	}
 
@@ -248,7 +267,7 @@ func (s *PerformanceService) CreatePerformanceReport(ctx context.Context, report
 		return fmt.Errorf("failed to check existence: %w", err)
 	}
 	if exists {
-		return fmt.Errorf("performance report already exists for %s on %s", report.TsCode, report.ReportDate.Format("2006-01-02"))
+		return fmt.Errorf("performance report already exists for %s on %d", report.TsCode, report.ReportDate)
 	}
 
 	// 创建记录

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"stock/internal/collector"
@@ -18,13 +19,26 @@ type StockService struct {
 	collectorManager *collector.CollectorManager
 }
 
-// NewStockService 创建股票数据服务
+var (
+	stockServiceInstance *StockService
+	stockServiceOnce     sync.Once
+)
+
+// GetStockService 获取股票数据服务单例
+func GetStockService(db *gorm.DB, logger *logrus.Logger, collectorManager *collector.CollectorManager) *StockService {
+	stockServiceOnce.Do(func() {
+		stockServiceInstance = &StockService{
+			db:               db,
+			logger:           logger,
+			collectorManager: collectorManager,
+		}
+	})
+	return stockServiceInstance
+}
+
+// NewStockService 创建股票数据服务 (保持向后兼容)
 func NewStockService(db *gorm.DB, logger *logrus.Logger, collectorManager *collector.CollectorManager) *StockService {
-	return &StockService{
-		db:               db,
-		logger:           logger,
-		collectorManager: collectorManager,
-	}
+	return GetStockService(db, logger, collectorManager)
 }
 
 // SyncAllStocks 同步所有股票数据到数据库

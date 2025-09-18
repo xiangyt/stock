@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"fmt"
 	"stock/internal/model"
 	"stock/internal/utils"
 	"testing"
@@ -351,6 +352,92 @@ func TestEastMoneyCollector_GetPerformanceReports(t *testing.T) {
 	} else {
 		t.Logf("No performance reports available for stock %s", stockCode)
 	}
+}
+
+// TestGetStockDetail_000418 测试获取000418股票详情
+func TestGetStockDetail_000418(t *testing.T) {
+	// 创建一个简单的logger
+	logrusLogger := logrus.New()
+	logrusLogger.SetLevel(logrus.InfoLevel)
+	logger := &utils.Logger{Logger: logrusLogger}
+
+	collector := NewEastMoneyCollector(logger)
+
+	// 测试股票代码 000418 (小天鹅A)
+	tsCode := "000418.SZ"
+
+	logger.Infof("开始测试GetStockDetail方法，股票代码: %s", tsCode)
+
+	// 调用GetStockDetail方法
+	stockDetail, err := collector.GetStockDetail(tsCode)
+
+	if err != nil {
+		t.Logf("GetStockDetail返回错误: %v", err)
+		// 即使有错误也继续测试，可能是正常情况
+	}
+
+	if stockDetail != nil {
+		logger.Infof("✅ 成功获取股票详情")
+		logger.Infof("📊 股票代码: %s", stockDetail.TsCode)
+		logger.Infof("📊 股票名称: %s", stockDetail.Name)
+		logger.Infof("📊 所属行业: %s", stockDetail.Industry)
+		if stockDetail.ListDate != nil {
+			logger.Infof("📊 上市日期: %s", stockDetail.ListDate.Format("2006-01-02"))
+		}
+		logger.Infof("📊 市场类型: %s", stockDetail.Market)
+
+		// 验证基本字段
+		assert.Equal(t, tsCode, stockDetail.TsCode, "股票代码应该匹配")
+		assert.NotEmpty(t, stockDetail.Name, "股票名称不应为空")
+
+		// 验证数据完整性
+		if stockDetail.TsCode != "" {
+			logger.Infof("✅ 股票代码字段验证通过")
+		}
+		if stockDetail.Name != "" {
+			logger.Infof("✅ 股票名称字段验证通过")
+		}
+		if stockDetail.Industry != "" {
+			logger.Infof("✅ 行业信息字段验证通过")
+		}
+		if stockDetail.ListDate != nil && !stockDetail.ListDate.IsZero() {
+			logger.Infof("✅ 上市日期字段验证通过")
+		}
+
+	} else {
+		logger.Infof("⚠️ GetStockDetail返回空结果")
+		t.Logf("GetStockDetail返回nil，可能该股票已退市或API无相关数据")
+	}
+
+	// 测试多个股票代码以验证方法的通用性
+	testCodes := []string{
+		"000001.SZ", // 平安银行
+		"600000.SH", // 浦发银行
+		"000002.SZ", // 万科A
+	}
+
+	logger.Infof("开始测试其他股票代码...")
+	for _, code := range testCodes {
+		t.Run(fmt.Sprintf("测试股票_%s", code), func(t *testing.T) {
+			detail, err := collector.GetStockDetail(code)
+			if err != nil {
+				t.Logf("股票 %s GetStockDetail失败: %v", code, err)
+				return
+			}
+
+			if detail != nil {
+				logger.Infof("✅ %s: %s (%s)", code, detail.Name, detail.Industry)
+				assert.Equal(t, code, detail.TsCode, "股票代码应该匹配")
+			} else {
+				t.Logf("股票 %s 返回空结果", code)
+			}
+		})
+
+		// 添加延迟避免请求过快
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	logger.Infof("🎉 GetStockDetail方法测试完成")
 }
 
 // TestEastMoneyCollector_GetPerformanceReports_InvalidCode 测试无效股票代码

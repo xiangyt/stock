@@ -88,7 +88,7 @@ func (r *PerformanceRepository) DeleteByTsCode(tsCode string) error {
 }
 
 // Exists 检查业绩报表是否存在
-func (r *PerformanceRepository) Exists(tsCode string, reportDate time.Time) (bool, error) {
+func (r *PerformanceRepository) Exists(tsCode string, reportDate int) (bool, error) {
 	var count int64
 	err := r.db.Model(&model.PerformanceReport{}).
 		Where("ts_code = ? AND report_date = ?", tsCode, reportDate).
@@ -120,7 +120,6 @@ func (r *PerformanceRepository) UpsertBatch(reports []model.PerformanceReport) e
 				return fmt.Errorf("failed to query existing performance report: %w", err)
 			} else {
 				// 记录存在，更新记录
-				report.ID = existingReport.ID               // 保持原有ID
 				report.CreatedAt = existingReport.CreatedAt // 保持原有创建时间
 				if err := tx.Save(&report).Error; err != nil {
 					return fmt.Errorf("failed to update performance report for %s: %w", report.TsCode, err)

@@ -7,22 +7,22 @@ import (
 
 // DataCollector 数据采集器接口
 type DataCollector interface {
-	// 连接数据源
+	// Connect 连接数据源
 	Connect() error
 
-	// 断开连接
+	// Disconnect 断开连接
 	Disconnect() error
 
-	// 获取股票列表
+	// GetStockList 获取股票列表
 	GetStockList() ([]model.Stock, error)
 
-	// 获取股票详情
+	// GetStockDetail 获取股票详情
 	GetStockDetail(tsCode string) (*model.Stock, error)
 
-	// 获取股票历史数据
+	// GetStockData 获取股票历史数据
 	GetStockData(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error)
 
-	// 获取日K线数据
+	// GetDailyKLine 获取日K线数据
 	GetDailyKLine(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error)
 
 	// 获取周K线数据
@@ -31,7 +31,7 @@ type DataCollector interface {
 	// 获取月K线数据
 	GetMonthlyKLine(tsCode string, startDate, endDate time.Time) ([]model.MonthlyData, error)
 
-	// 获取年K线数据
+	// GetYearlyKLine 获取年K线数据
 	GetYearlyKLine(tsCode string, startDate, endDate time.Time) ([]model.YearlyData, error)
 
 	// 获取实时数据

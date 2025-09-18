@@ -39,12 +39,25 @@ type TaskRunner struct {
 	Done   chan struct{}
 }
 
-// NewTaskService 创建任务服务
+var (
+	taskServiceInstance *TaskService
+	taskServiceOnce     sync.Once
+)
+
+// GetTaskService 获取任务服务单例
+func GetTaskService(db *gorm.DB, logger *logrus.Logger) *TaskService {
+	taskServiceOnce.Do(func() {
+		taskServiceInstance = &TaskService{
+			db:     db,
+			logger: logger,
+		}
+	})
+	return taskServiceInstance
+}
+
+// NewTaskService 创建任务服务 (保持向后兼容)
 func NewTaskService(db *gorm.DB, logger *logrus.Logger) *TaskService {
-	return &TaskService{
-		db:     db,
-		logger: logger,
-	}
+	return GetTaskService(db, logger)
 }
 
 // CreateTask 创建新任务
