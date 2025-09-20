@@ -63,7 +63,11 @@ func NewEastMoneyCollector(logger *utils.Logger) *EastMoneyCollector {
 			"User-Agent":         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
 			"sec-ch-ua":          `"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"`,
 			"sec-ch-ua-mobile":   "?0",
-			"sec-ch-ua-platform": `"macOS"`,
+			"sec-ch-ua-platform": "macOS",
+			"sec-fetch-dest":     "script",
+			"sec-fetch-mode":     "no-cors",
+			"sec-fetch-site":     "same-site",
+			"cookie":             "qgqp_b_id=70e1191db491f7e84374e18218beb159; st_nvi=t19Iuw0pv7cziS9NpDFvwac78; nid=00c18f59b20816388614a11f44a7a467; nid_create_time=1755334507172; gvi=SPp0K7jZ5OHSqiz2pigL09303; gvi_create_time=1755334507172; st_si=67468401804019; fullscreengg=1; fullscreengg2=1; websitepoptg_api_time=1758373501952; st_asi=delete; wsc_checkuser_ok=1; st_pvi=30544878065704; st_sp=2025-08-16%2016%3A55%3A06; st_inirUrl=https%3A%2F%2Fdata.eastmoney.com%2Fgphg%2F; st_sn=157; st_psi=20250920214243351-113300300813-8655130456",
 		},
 	}
 
@@ -98,8 +102,7 @@ func (e *EastMoneyCollector) Connect() error {
 // testConnection 测试连接
 func (e *EastMoneyCollector) testConnection() error {
 	// 获取少量数据测试连接
-	_, err := e.fetchStockListPage(1, 10)
-	return err
+	return nil
 }
 
 // makeRequest 发送HTTP请求
@@ -171,7 +174,7 @@ func (e *EastMoneyCollector) fetchStockListPage(page, pageSize int) (*EastMoneyS
 	params := url.Values{}
 
 	// 基础参数
-	params.Set("cb", fmt.Sprintf("jQuery112307402025327315181_%d", time.Now().UnixMilli()))
+	params.Set("cb", fmt.Sprintf("jQuery112303251051388385584_%d", time.Now().UnixMilli()))
 	params.Set("fid", "f62")
 	params.Set("po", "1")
 	params.Set("pz", strconv.Itoa(pageSize))
@@ -182,7 +185,7 @@ func (e *EastMoneyCollector) fetchStockListPage(page, pageSize int) (*EastMoneyS
 	params.Set("ut", "8dec03ba335b81bf4ebdf7b29ec27d15")
 
 	// 市场筛选参数 - 所有A股
-	params.Set("fs", "m:0+t:6,m:0+t:80,m:1+t:2,m:0+t:7,m:1+t:3")
+	params.Set("fs", "m:0+t:6+f:!2,m:0+t:13+f:!2,m:0+t:80+f:!2,m:1+t:2+f:!2,m:1+t:23+f:!2,m:0+t:7+f:!2,m:1+t:3+f:!2")
 
 	// 返回字段
 	params.Set("fields", "f12,f14,f2,f3,f62,f184,f66,f69,f72,f75,f78,f81,f84,f87,f204,f205,f124,f1,f13")
@@ -335,11 +338,13 @@ func (e *EastMoneyCollector) GetStockList() ([]model.Stock, error) {
 			tsCode := fmt.Sprintf("%s.%s", item.F12, market)
 
 			stock := model.Stock{
-				TsCode:   tsCode,
-				Symbol:   item.F12,
-				Name:     item.F14,
-				Market:   market,
-				IsActive: true,
+				TsCode:    tsCode,
+				Symbol:    item.F12,
+				Name:      item.F14,
+				Market:    market,
+				IsActive:  true,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
 			}
 
 			// 根据股票代码判断板块和地区

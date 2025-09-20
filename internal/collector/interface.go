@@ -25,34 +25,34 @@ type DataCollector interface {
 	// GetDailyKLine 获取日K线数据
 	GetDailyKLine(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error)
 
-	// 获取周K线数据
+	// GetWeeklyKLine 获取周K线数据
 	GetWeeklyKLine(tsCode string, startDate, endDate time.Time) ([]model.WeeklyData, error)
 
-	// 获取月K线数据
+	// GetMonthlyKLine 获取月K线数据
 	GetMonthlyKLine(tsCode string, startDate, endDate time.Time) ([]model.MonthlyData, error)
 
 	// GetYearlyKLine 获取年K线数据
 	GetYearlyKLine(tsCode string, startDate, endDate time.Time) ([]model.YearlyData, error)
 
-	// 获取实时数据
+	// GetRealtimeData 获取实时数据
 	GetRealtimeData(tsCodes []string) ([]model.DailyData, error)
 
-	// 获取业绩报表数据
+	// GetPerformanceReports 获取业绩报表数据
 	GetPerformanceReports(tsCode string) ([]model.PerformanceReport, error)
 
-	// 获取最新业绩报表数据
+	// GetLatestPerformanceReport 获取最新业绩报表数据
 	GetLatestPerformanceReport(tsCode string) (*model.PerformanceReport, error)
 
-	// 获取股东户数数据
+	// GetShareholderCounts 获取股东户数数据
 	GetShareholderCounts(tsCode string) ([]model.ShareholderCount, error)
 
-	// 获取最新股东户数数据
+	// GetLatestShareholderCount 获取最新股东户数数据
 	GetLatestShareholderCount(tsCode string) (*model.ShareholderCount, error)
 
-	// 检查连接状态
+	// IsConnected 检查连接状态
 	IsConnected() bool
 
-	// 获取数据源名称
+	// GetName 获取数据源名称
 	GetName() string
 }
 

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,9 @@ type DataService struct {
 	logger           *utils.Logger
 	stockRepo        *repository.StockRepository
 	dailyDataRepo    *repository.DailyDataRepository
+	weeklyDataRepo   *repository.WeeklyDataRepository
+	monthlyDataRepo  *repository.MonthlyDataRepository
+	yearlyDataRepo   *repository.YearlyDataRepository
 	collectorFactory *collector.CollectorFactory
 }
 
@@ -35,6 +39,9 @@ func GetDataService(db *gorm.DB, logger *utils.Logger) *DataService {
 			logger:           logger,
 			stockRepo:        repository.NewStockRepository(db, logger),
 			dailyDataRepo:    repository.NewDailyDataRepository(db, logger),
+			weeklyDataRepo:   repository.NewWeeklyDataRepository(db, logger),
+			monthlyDataRepo:  repository.NewMonthlyDataRepository(db, logger),
+			yearlyDataRepo:   repository.NewYearlyDataRepository(db, logger),
 			collectorFactory: collector.NewCollectorFactory(logger),
 		}
 	})
@@ -75,6 +82,14 @@ func (s *DataService) SyncStockList() error {
 
 	s.logger.Infof("Fetched %d stocks from EastMoney", len(stocks))
 
+	for _, stock := range stocks {
+		if strings.HasPrefix(stock.Name, "XD") { // 除权日清理所有k线数据
+			_ = s.dailyDataRepo.DeleteDailyData(stock.TsCode, time.Time{})
+			_ = s.weeklyDataRepo.DeleteWeeklyData(stock.TsCode, time.Time{})
+			_ = s.monthlyDataRepo.DeleteMonthlyData(stock.TsCode, time.Time{})
+			_ = s.yearlyDataRepo.DeleteYearlyData(stock.TsCode, time.Time{})
+		}
+	}
 	// 批量更新或插入股票数据
 	if err := s.stockRepo.UpsertStocks(stocks); err != nil {
 		return fmt.Errorf("failed to upsert stocks: %v", err)
@@ -395,7 +410,7 @@ func (s *DataService) GetStockInfo(tsCode string) (*model.Stock, error) {
 
 // GetDailyData 获取日线数据
 func (s *DataService) GetDailyData(tsCode string, startDate, endDate time.Time, limit int) ([]model.DailyData, error) {
-	return s.dailyDataRepo.GetDailyDataByTsCode(tsCode, startDate, endDate, limit)
+	return s.dailyDataRepo.GetDailyData(tsCode, startDate, endDate, limit)
 }
 
 // GetLatestPrice 获取最新价格

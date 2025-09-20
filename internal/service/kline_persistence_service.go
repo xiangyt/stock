@@ -14,12 +14,12 @@ import (
 
 // KLinePersistenceService K线数据持久化服务
 type KLinePersistenceService struct {
-	db           *gorm.DB
-	logger       *utils.Logger
-	dailyManager *DailyKLineManager
-	weeklyRepo   *repository.WeeklyDataRepository
-	monthlyRepo  *repository.MonthlyDataRepository
-	yearlyRepo   *repository.YearlyDataRepository
+	db            *gorm.DB
+	logger        *utils.Logger
+	dailyDataRepo *repository.DailyDataRepository
+	weeklyRepo    *repository.WeeklyDataRepository
+	monthlyRepo   *repository.MonthlyDataRepository
+	yearlyRepo    *repository.YearlyDataRepository
 }
 
 var (
@@ -31,12 +31,12 @@ var (
 func GetKLinePersistenceService(db *gorm.DB, logger *utils.Logger) *KLinePersistenceService {
 	klinePersistenceServiceOnce.Do(func() {
 		klinePersistenceServiceInstance = &KLinePersistenceService{
-			db:           db,
-			logger:       logger,
-			dailyManager: GetDailyKLineManager(db, logger),
-			weeklyRepo:   repository.NewWeeklyDataRepository(db, logger),
-			monthlyRepo:  repository.NewMonthlyDataRepository(db, logger),
-			yearlyRepo:   repository.NewYearlyDataRepository(db, logger),
+			db:            db,
+			logger:        logger,
+			dailyDataRepo: repository.NewDailyDataRepository(db, logger),
+			weeklyRepo:    repository.NewWeeklyDataRepository(db, logger),
+			monthlyRepo:   repository.NewMonthlyDataRepository(db, logger),
+			yearlyRepo:    repository.NewYearlyDataRepository(db, logger),
 		}
 	})
 	return klinePersistenceServiceInstance
@@ -49,7 +49,7 @@ func NewKLinePersistenceService(db *gorm.DB, logger *utils.Logger) *KLinePersist
 
 // SaveDailyData 保存日K线数据
 func (s *KLinePersistenceService) SaveDailyData(data model.DailyData) error {
-	return s.dailyManager.SaveDailyData([]model.DailyData{data})
+	return s.dailyDataRepo.SaveDailyData([]model.DailyData{data})
 }
 
 // SaveWeeklyData 保存周K线数据 (使用Upsert)
@@ -69,7 +69,7 @@ func (s *KLinePersistenceService) SaveYearlyData(data model.YearlyData) error {
 
 // BatchSaveDailyData 批量保存日K线数据
 func (s *KLinePersistenceService) BatchSaveDailyData(dataList []model.DailyData) error {
-	return s.dailyManager.SaveDailyData(dataList)
+	return s.dailyDataRepo.SaveDailyData(dataList)
 }
 
 // BatchSaveWeeklyData 批量保存周K线数据 (使用BatchUpsert)
@@ -89,7 +89,7 @@ func (s *KLinePersistenceService) BatchSaveYearlyData(dataList []model.YearlyDat
 
 // GetDailyData 获取日K线数据
 func (s *KLinePersistenceService) GetDailyData(tsCode string, startDate, endDate time.Time, limit int) ([]model.DailyData, error) {
-	return s.dailyManager.GetDailyData(tsCode, startDate, endDate, limit)
+	return s.dailyDataRepo.GetDailyData(tsCode, startDate, endDate, limit)
 }
 
 // GetWeeklyData 获取周K线数据
@@ -109,7 +109,7 @@ func (s *KLinePersistenceService) GetYearlyData(tsCode string, startDate, endDat
 
 // GetLatestDailyData 获取最新日K线数据
 func (s *KLinePersistenceService) GetLatestDailyData(tsCode string) (*model.DailyData, error) {
-	return s.dailyManager.GetLatestDailyData(tsCode)
+	return s.dailyDataRepo.GetLatestDailyData(tsCode)
 }
 
 // GetLatestWeeklyData 获取最新周K线数据
@@ -129,7 +129,7 @@ func (s *KLinePersistenceService) GetLatestYearlyData(tsCode string) (*model.Yea
 
 // GetDataStats 获取所有K线数据统计信息
 func (s *KLinePersistenceService) GetDataStats(tsCode string) (map[string]interface{}, error) {
-	dailyCount, err := s.dailyManager.GetDailyDataCount(tsCode)
+	dailyCount, err := s.dailyDataRepo.GetDailyDataCount(tsCode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get daily count: %w", err)
 	}
@@ -166,7 +166,7 @@ func (s *KLinePersistenceService) GetDataStats(tsCode string) (map[string]interf
 func (s *KLinePersistenceService) DeleteData(tsCode string, tradeDate time.Time, dataType string) error {
 	switch dataType {
 	case "daily":
-		return s.dailyManager.DeleteDailyData(tsCode, tradeDate)
+		return s.dailyDataRepo.DeleteDailyData(tsCode, tradeDate)
 	case "weekly":
 		return s.weeklyRepo.DeleteWeeklyData(tsCode, tradeDate)
 	case "monthly":

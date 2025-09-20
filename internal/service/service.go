@@ -15,6 +15,7 @@ type Services struct {
 	BacktestEngine     *BacktestEngineService
 	DataService        *DataService
 	PerformanceService *PerformanceService
+	ShareholderService *ShareholderService
 }
 
 // NewServices 创建服务集合 (使用单例模式)
@@ -34,7 +35,7 @@ func NewServices(cfg *config.Config, logger *utils.Logger) (*Services, error) {
 	// 初始化回测引擎服务 (使用单例)
 	backtestEngineService := GetBacktestEngineService(cfg, logger)
 
-	// 注意：DataService和PerformanceService需要数据库连接，这里先设为nil
+	// 注意：DataService、PerformanceService和ShareholderService需要数据库连接，这里先设为nil
 	// 在实际使用时需要通过InitServicesWithDB来初始化
 	return &Services{
 		Database:           dbService,
@@ -44,6 +45,7 @@ func NewServices(cfg *config.Config, logger *utils.Logger) (*Services, error) {
 		BacktestEngine:     backtestEngineService,
 		DataService:        nil, // 需要数据库连接后初始化
 		PerformanceService: nil, // 需要数据库连接后初始化
+		ShareholderService: nil, // 需要数据库连接后初始化
 	}, nil
 }
 

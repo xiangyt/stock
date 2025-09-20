@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"stock/internal/repository"
 	"sync"
 	"time"
 
@@ -18,7 +19,7 @@ type KLineService struct {
 	db               *gorm.DB
 	logger           *logrus.Logger
 	collectorManager *collector.CollectorManager
-	dailyManager     *DailyKLineManager
+	dailyDataRepo    *repository.DailyDataRepository
 }
 
 var (
@@ -34,7 +35,7 @@ func GetKLineService(db *gorm.DB, logger *logrus.Logger, collectorManager *colle
 			db:               db,
 			logger:           logger,
 			collectorManager: collectorManager,
-			dailyManager:     GetDailyKLineManager(db, utilsLogger),
+			dailyDataRepo:    repository.NewDailyDataRepository(db, utilsLogger),
 		}
 	})
 	return klineServiceInstance
@@ -65,7 +66,7 @@ func formatDateInt(dateInt int) string {
 
 // GetKLineData 从数据库获取K线数据（只查询，不刷新）
 func (s *KLineService) GetKLineData(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error) {
-	dailyData, err := s.dailyManager.GetDailyData(tsCode, startDate, endDate, 0)
+	dailyData, err := s.dailyDataRepo.GetDailyData(tsCode, startDate, endDate, 0)
 	if err != nil {
 		s.logger.Errorf("Failed to get daily data from database: %v", err)
 		return nil, err
@@ -102,7 +103,7 @@ func (s *KLineService) RefreshKLineData(tsCode string, startDate, endDate time.T
 // GetDataRange 获取数据库中K线数据的时间范围和数量
 func (s *KLineService) GetDataRange(tsCode string) (startDate, endDate time.Time, count int64, err error) {
 	// 获取数据数量
-	count, err = s.dailyManager.GetDailyDataCount(tsCode)
+	count, err = s.dailyDataRepo.GetDailyDataCount(tsCode)
 	if err != nil {
 		return
 	}
@@ -112,7 +113,7 @@ func (s *KLineService) GetDataRange(tsCode string) (startDate, endDate time.Time
 	}
 
 	// 获取时间范围
-	startDate, endDate, err = s.dailyManager.GetDateRange(tsCode)
+	startDate, endDate, err = s.dailyDataRepo.GetDateRange(tsCode)
 	return
 }
 
@@ -129,7 +130,7 @@ func (s *KLineService) saveDailyDataToDB(tsCode string, data []model.DailyData, 
 	}
 
 	// 使用DailyKLineManager保存数据到对应的交易所表
-	err := s.dailyManager.UpsertDailyData(data)
+	err := s.dailyDataRepo.UpsertDailyData(data)
 	if err != nil {
 		s.logger.Errorf("Failed to save daily data for %s: %v", tsCode, err)
 		return err
@@ -141,7 +142,7 @@ func (s *KLineService) saveDailyDataToDB(tsCode string, data []model.DailyData, 
 
 // GetDataStats 获取数据统计信息
 func (s *KLineService) GetDataStats(tsCode string) (map[string]interface{}, error) {
-	count, err := s.dailyManager.GetDailyDataCount(tsCode)
+	count, err := s.dailyDataRepo.GetDailyDataCount(tsCode)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +155,7 @@ func (s *KLineService) GetDataStats(tsCode string) (map[string]interface{}, erro
 		}, nil
 	}
 
-	startDate, endDate, err := s.dailyManager.GetDateRange(tsCode)
+	startDate, endDate, err := s.dailyDataRepo.GetDateRange(tsCode)
 	if err != nil {
 		return nil, err
 	}

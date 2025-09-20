@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"time"
 
 	"stock/internal/model"
@@ -161,7 +162,7 @@ func (r *MonthlyDataRepository) GetMonthlyDataByTsCode(tsCode string, startDate,
 func (r *MonthlyDataRepository) GetLatestMonthlyData(tsCode string) (*model.MonthlyData, error) {
 	var data model.MonthlyData
 	if err := r.db.Where("ts_code = ?", tsCode).Order("trade_date DESC").First(&data).Error; err != nil {
-		if err.Error() == "record not found" {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		r.logger.Errorf("Failed to get latest monthly data: %v", err)
@@ -172,8 +173,12 @@ func (r *MonthlyDataRepository) GetLatestMonthlyData(tsCode string) (*model.Mont
 
 // DeleteMonthlyData 删除月K线数据
 func (r *MonthlyDataRepository) DeleteMonthlyData(tsCode string, tradeDate time.Time) error {
-	tradeDateInt := tradeDate.Year()*10000 + int(tradeDate.Month())*100 + tradeDate.Day()
-	if err := r.db.Where("ts_code = ? AND trade_date = ?", tsCode, tradeDateInt).Delete(&model.MonthlyData{}).Error; err != nil {
+	db := r.db.Where("ts_code = ? ", tsCode)
+	if !tradeDate.IsZero() {
+		tradeDateInt := tradeDate.Year()*10000 + int(tradeDate.Month())*100 + tradeDate.Day()
+		db = db.Where("trade_date = ?", tradeDateInt)
+	}
+	if err := db.Delete(&model.MonthlyData{}).Error; err != nil {
 		r.logger.Errorf("Failed to delete monthly data: %v", err)
 		return err
 	}
