@@ -98,4 +98,6 @@ func TestYearlyKLineCollection(t *testing.T) {
 	}
 
 	collectAndPersistYearlyKLineData(services)
+	//syncStockYearlyKLine(services, &model.Stock{TsCode: "001208.SZ"})
+
 }

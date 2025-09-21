@@ -49,10 +49,15 @@ type KLineResponse struct {
 // EastMoneyCollector 东方财富数据采集器
 type EastMoneyCollector struct {
 	BaseCollector
-	client  *http.Client
-	logger  *logger.Logger
-	parser  *KLineParser
-	limiter *rate.Limiter // 限流器
+	client         *http.Client
+	logger         *logger.Logger
+	parser         *KLineParser
+	limiter        *rate.Limiter // 限流器
+	userAgentGen   *UserAgentGenerator
+	cookieGen      *CookieGenerator
+	currentUA      string
+	currentCookie  string
+	lastUpdateTime time.Time
 }
 
 // newEastMoneyCollector 创建东方财富采集器
@@ -61,34 +66,38 @@ func newEastMoneyCollector(logger *logger.Logger) *EastMoneyCollector {
 		Name:      "eastmoney",
 		BaseURL:   "https://push2.eastmoney.com",
 		Timeout:   10 * time.Second,
-		RateLimit: 3, // 每秒10个请求
+		RateLimit: 1, // 每秒1个请求
 		Headers: map[string]string{
 			"Accept":          "*/*",
 			"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
 			"Connection":      "keep-alive",
 			//"Referer":            "https://data.eastmoney.com/",// 动态设置
-			"User-Agent":         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
-			"sec-ch-ua":          `"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"`,
-			"sec-ch-ua-mobile":   "?0",
-			"sec-ch-ua-platform": "macOS",
-			"sec-fetch-dest":     "script",
-			"sec-fetch-mode":     "no-cors",
-			"sec-fetch-site":     "same-site",
-			"cache-control":      "no-cache",
-			"pargma":             "no-cache",
-			"cookie": "qgqp_b_id=70e1191db491f7e84374e18218beb159; st_nvi=t19Iuw0pv7cziS9NpDFvwac78; " +
-				"nid=00c18f59b20816388614a11f44a7a467; nid_create_time=1755334507172; gvi=SPp0K7jZ5OHSqiz2pigL09303; " +
-				"gvi_create_time=1755334507172; st_si=67468401804019; fullscreengg=1; fullscreengg2=1; " +
-				"websitepoptg_api_time=1758373501952; st_asi=delete; wsc_checkuser_ok=1; st_pvi=30544878065704; " +
-				"st_sp=2025-08-16%2016%3A55%3A06; st_inirUrl=https%3A%2F%2Fdata.eastmoney.com%2Fgphg%2F; st_sn=166; " +
-				"st_psi=20250921003620276-113300300813-8448178144; wsc_checkuser_ok=1",
+			//"User-Agent":         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+			//"sec-ch-ua":          `"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"`,
+			"sec-ch-ua-mobile": "?0",
+			//"sec-ch-ua-platform": "macOS",
+			"sec-fetch-dest": "script",
+			"sec-fetch-mode": "no-cors",
+			"sec-fetch-site": "same-site",
+			"cache-control":  "no-cache",
+			"pargma":         "no-cache",
+			//"cookie": "qgqp_b_id=70e1191db491f7e84374e18218beb159; st_nvi=t19Iuw0pv7cziS9NpDFvwac78; " +
+			//	"nid=00c18f59b20816388614a11f44a7a467; nid_create_time=1755334507172; gvi=SPp0K7jZ5OHSqiz2pigL09303; " +
+			//	"gvi_create_time=1755334507172; st_si=67468401804019; fullscreengg=1; fullscreengg2=1; " +
+			//	"websitepoptg_api_time=1758373501952; st_asi=delete; wsc_checkuser_ok=1; st_pvi=30544878065704; " +
+			//	"st_sp=2025-08-16%2016%3A55%3A06; st_inirUrl=https%3A%2F%2Fdata.eastmoney.com%2Fgphg%2F; st_sn=166; " +
+			//	"st_psi=20250921003620276-113300300813-8448178144; wsc_checkuser_ok=1",
 		},
 	}
 
 	// 创建限流器，每秒允许 RateLimit 个请求，突发容量为 RateLimit*2
 	limiter := rate.NewLimiter(rate.Limit(config.RateLimit), config.RateLimit*2)
 
-	return &EastMoneyCollector{
+	// 创建随机生成器
+	userAgentGen := NewUserAgentGenerator()
+	cookieGen := NewCookieGenerator()
+
+	collector := &EastMoneyCollector{
 		BaseCollector: BaseCollector{
 			Config:    config,
 			Connected: false,
@@ -96,10 +105,17 @@ func newEastMoneyCollector(logger *logger.Logger) *EastMoneyCollector {
 		client: &http.Client{
 			Timeout: config.Timeout,
 		},
-		logger:  logger,
-		parser:  NewKLineParser(),
-		limiter: limiter,
+		logger:       logger,
+		parser:       NewKLineParser(),
+		limiter:      limiter,
+		userAgentGen: userAgentGen,
+		cookieGen:    cookieGen,
 	}
+
+	// 初始化随机User-Agent和Cookie
+	collector.updateUserAgentAndCookie()
+
+	return collector
 }
 
 // Connect 连接数据源
@@ -121,18 +137,33 @@ func (e *EastMoneyCollector) makeRequestWithContext(ctx context.Context, url, re
 		return nil, fmt.Errorf("rate limit wait failed: %v", err)
 	}
 
+	// 检查是否需要更新User-Agent和Cookie（每1分钟更新一次）
+	if time.Since(e.lastUpdateTime) > 1*time.Minute {
+		e.updateUserAgentAndCookie()
+	}
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// 添加请求头
+	// 添加基础请求头
 	for key, value := range e.Config.Headers {
+		// 跳过User-Agent和Cookie，使用随机生成的
+		if key == "User-Agent" || key == "cookie" {
+			continue
+		}
 		req.Header.Set(key, value)
 	}
+
+	// 设置随机生成的User-Agent和Cookie
+	req.Header.Set("User-Agent", e.currentUA)
+	req.Header.Set("Cookie", e.currentCookie)
+	req.Header.Set("sec-ch-ua", e.userAgentGen.GenerateSecChUa(e.currentUA))
+	req.Header.Set("sec-ch-ua-platform", e.getPlatformFromUA(e.currentUA))
 	req.Header.Set("Referer", refer)
 
-	e.logger.Debugf("Making rate-limited request: %s", url)
+	e.logger.Debugf("Making rate-limited request with random UA: %s", url)
 
 	resp, err := e.client.Do(req)
 	if err != nil {
@@ -218,8 +249,8 @@ func (e *EastMoneyCollector) fetchStockListPage(page, pageSize int) (*EastMoneyS
 
 	// 基础参数
 	params.Set("cb", fmt.Sprintf("jQuery112303251051388385584_%d", time.Now().UnixMilli()))
-	params.Set("fid", "f62")
-	params.Set("po", "1")
+	params.Set("fid", "f12")
+	params.Set("po", "0")
 	params.Set("pz", strconv.Itoa(pageSize))
 	params.Set("pn", strconv.Itoa(page))
 	params.Set("np", "1")
@@ -775,6 +806,11 @@ func (e *EastMoneyCollector) GetLatestPerformanceReport(tsCode string) (*model.P
 
 // makePerformanceRequest 发送业绩报表请求
 func (e *EastMoneyCollector) makePerformanceRequest(url, stockCode string) (*http.Response, error) {
+	// 检查是否需要更新User-Agent和Cookie
+	if time.Since(e.lastUpdateTime) > 1*time.Minute {
+		e.updateUserAgentAndCookie()
+	}
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -788,12 +824,15 @@ func (e *EastMoneyCollector) makePerformanceRequest(url, stockCode string) (*htt
 	req.Header.Set("Sec-Fetch-Dest", "script")
 	req.Header.Set("Sec-Fetch-Mode", "no-cors")
 	req.Header.Set("Sec-Fetch-Site", "same-site")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36")
-	req.Header.Set("sec-ch-ua", `"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"`)
-	req.Header.Set("sec-ch-ua-mobile", "?0")
-	req.Header.Set("sec-ch-ua-platform", `"macOS"`)
 
-	e.logger.Debugf("Making performance request: %s", url)
+	// 使用随机生成的User-Agent和相关头部
+	req.Header.Set("User-Agent", e.currentUA)
+	req.Header.Set("Cookie", e.currentCookie)
+	req.Header.Set("sec-ch-ua", e.userAgentGen.GenerateSecChUa(e.currentUA))
+	req.Header.Set("sec-ch-ua-mobile", "?0")
+	req.Header.Set("sec-ch-ua-platform", e.getPlatformFromUA(e.currentUA))
+
+	e.logger.Debugf("Making performance request with random UA: %s", url)
 
 	resp, err := e.client.Do(req)
 	if err != nil {
@@ -980,7 +1019,7 @@ func (e *EastMoneyCollector) GetLatestShareholderCount(tsCode string) (*model.Sh
 
 // GetDailyKLine 获取日K线数据
 func (e *EastMoneyCollector) GetDailyKLine(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error) {
-	klines, err := e.fetchKLineRawData(tsCode, KLineTypeDaily)
+	klines, err := e.fetchKLineRawData(tsCode, startDate, KLineTypeDaily)
 	if err != nil {
 		return nil, err
 	}
@@ -1003,7 +1042,7 @@ func (e *EastMoneyCollector) GetDailyKLine(tsCode string, startDate, endDate tim
 
 // GetWeeklyKLine 获取周K线数据
 func (e *EastMoneyCollector) GetWeeklyKLine(tsCode string, startDate, endDate time.Time) ([]model.WeeklyData, error) {
-	klines, err := e.fetchKLineRawData(tsCode, KLineTypeWeekly)
+	klines, err := e.fetchKLineRawData(tsCode, startDate, KLineTypeWeekly)
 	if err != nil {
 		return nil, err
 	}
@@ -1026,7 +1065,7 @@ func (e *EastMoneyCollector) GetWeeklyKLine(tsCode string, startDate, endDate ti
 
 // GetMonthlyKLine 获取月K线数据
 func (e *EastMoneyCollector) GetMonthlyKLine(tsCode string, startDate, endDate time.Time) ([]model.MonthlyData, error) {
-	klines, err := e.fetchKLineRawData(tsCode, KLineTypeMonthly)
+	klines, err := e.fetchKLineRawData(tsCode, startDate, KLineTypeMonthly)
 	if err != nil {
 		return nil, err
 	}
@@ -1049,7 +1088,7 @@ func (e *EastMoneyCollector) GetMonthlyKLine(tsCode string, startDate, endDate t
 
 // GetYearlyKLine 获取年K线数据
 func (e *EastMoneyCollector) GetYearlyKLine(tsCode string, startDate, endDate time.Time) ([]model.YearlyData, error) {
-	klines, err := e.fetchKLineRawData(tsCode, KLineTypeYearly)
+	klines, err := e.fetchKLineRawData(tsCode, startDate, KLineTypeYearly)
 	if err != nil {
 		return nil, err
 	}
@@ -1071,12 +1110,12 @@ func (e *EastMoneyCollector) GetYearlyKLine(tsCode string, startDate, endDate ti
 }
 
 // fetchKLineRawData 获取原始K线数据
-func (e *EastMoneyCollector) fetchKLineRawData(tsCode string, klineType KLineType) (
+func (e *EastMoneyCollector) fetchKLineRawData(tsCode string, startDate time.Time, klineType KLineType) (
 	[]string, error) {
 	e.logger.Debugf("Fetching K-line data for %s, type: %s", tsCode, klineType)
 
 	// 构建请求URL
-	requestURL, err := e.buildKLineURL(tsCode, klineType)
+	requestURL, err := e.buildKLineURL(tsCode, startDate.Format("20060102"), klineType)
 	if err != nil {
 		return nil, fmt.Errorf("build URL failed: %w", err)
 	}
@@ -1095,7 +1134,7 @@ func (e *EastMoneyCollector) fetchKLineRawData(tsCode string, klineType KLineTyp
 }
 
 // buildKLineURL 构建K线请求URL
-func (e *EastMoneyCollector) buildKLineURL(tsCode, klineType string) (string, error) {
+func (e *EastMoneyCollector) buildKLineURL(tsCode, startDate, klineType string) (string, error) {
 	symbol, market, err := e.parseStockCode(tsCode)
 	if err != nil {
 		return "", err
@@ -1111,7 +1150,7 @@ func (e *EastMoneyCollector) buildKLineURL(tsCode, klineType string) (string, er
 	params := url.Values{
 		"fields1": {"f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13"},
 		"fields2": {"f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"},
-		"beg":     {"0"},
+		"beg":     {startDate},
 		"end":     {"20500101"},
 		"ut":      {"fa5fd1943c7b386f172d6893dbfba10b"},
 		"rtntype": {"6"},
@@ -1265,4 +1304,42 @@ func (e *EastMoneyCollector) convertToShareholderCount(tsCode string, data map[s
 	count.UpdatedAt = now
 
 	return count, nil
+}
+
+// updateUserAgentAndCookie 更新随机User-Agent和Cookie
+func (e *EastMoneyCollector) updateUserAgentAndCookie() {
+	e.currentUA = e.userAgentGen.GenerateUserAgent()
+	e.currentCookie = e.cookieGen.GenerateCookie()
+	e.lastUpdateTime = time.Now()
+
+	e.logger.Debugf("Updated User-Agent: %s", e.currentUA[:50]+"...")
+	e.logger.Debugf("Updated Cookie length: %d characters", len(e.currentCookie))
+}
+
+// getPlatformFromUA 从User-Agent中提取平台信息
+func (e *EastMoneyCollector) getPlatformFromUA(userAgent string) string {
+	if strings.Contains(userAgent, "Windows") {
+		return `"Windows"`
+	} else if strings.Contains(userAgent, "Macintosh") || strings.Contains(userAgent, "Mac OS X") {
+		return `"macOS"`
+	} else if strings.Contains(userAgent, "Linux") {
+		return `"Linux"`
+	}
+	return `"Unknown"`
+}
+
+// GetCurrentUserAgent 获取当前使用的User-Agent
+func (e *EastMoneyCollector) GetCurrentUserAgent() string {
+	return e.currentUA
+}
+
+// GetCurrentCookie 获取当前使用的Cookie
+func (e *EastMoneyCollector) GetCurrentCookie() string {
+	return e.currentCookie
+}
+
+// ForceUpdateUserAgentAndCookie 强制更新User-Agent和Cookie
+func (e *EastMoneyCollector) ForceUpdateUserAgentAndCookie() {
+	e.updateUserAgentAndCookie()
+	e.logger.Info("Forced update of User-Agent and Cookie")
 }

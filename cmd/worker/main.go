@@ -74,8 +74,7 @@ func main() {
 func setupCronJobs(c *cron.Cron, services *service.Services) {
 	// 每天早上8点执行主要任务
 	c.AddFunc("0 0 8 * * *", func() {
-		logger.Info("开始执行每日早上8点定时任务...")
-		services.DataService.SyncStockList()
+		_ = collectStockBasicInfo(services)
 	})
 
 	c.AddFunc("0 10 16 * * *", func() {
@@ -84,43 +83,35 @@ func setupCronJobs(c *cron.Cron, services *service.Services) {
 	})
 
 	c.AddFunc("0 10 17 * * *", func() {
-		// 日K线数据采集 - 第一优先级
-		_ = collectAndPersistDailyKLineData(services)
 		// 周K线数据采集 - 第二优先级
 		_ = collectAndPersistWeeklyKLineData(services)
 	})
 
 	c.AddFunc("0 10 18 * * *", func() {
-		// 日K线数据采集 - 第一优先级
-		_ = collectAndPersistDailyKLineData(services)
 		// 月K线数据采集 - 第三优先级
 		_ = collectAndPersistMonthlyKLineData(services)
 	})
 
 	c.AddFunc("0 10 19 * * *", func() {
-		// 周K线数据采集 - 第二优先级
-		_ = collectAndPersistWeeklyKLineData(services)
-		// 年K线数据采集 - 第四优先级
-		_ = collectAndPersistYearlyKLineData(services)
+		// 日K线数据采集 - 第一优先级
+		_ = collectAndPersistDailyKLineData(services)
 	})
 
 	c.AddFunc("0 10 20 * * *", func() {
-		// 月K线数据采集 - 第三优先级
-		_ = collectAndPersistMonthlyKLineData(services)
+		// 周K线数据采集 - 第二优先级
+		_ = collectAndPersistWeeklyKLineData(services)
 		// 年K线数据采集 - 第四优先级
-		_ = collectAndPersistYearlyKLineData(services)
+		_ = collectAndPersistMonthlyKLineData(services)
 	})
 
 	c.AddFunc("0 10 21 * * *", func() {
-		// 月K线数据采集 - 第三优先级
-		_ = collectAndPersistMonthlyKLineData(services)
-		// 年K线数据采集 - 第四优先级
-		_ = collectAndPersistYearlyKLineData(services)
+		// 日K线数据采集 - 第一优先级
+		_ = collectAndPersistDailyKLineData(services)
 	})
 
 	c.AddFunc("0 10 22 * * *", func() {
-		// 日K线数据采集 - 第一优先级
-		_ = collectAndPersistDailyKLineData(services)
+		_ = collectAndPersistPerformanceReports(services)
+		_ = collectAndPersistShareholderCounts(services)
 	})
 
 	logger.Info("定时任务配置完成！")
@@ -192,7 +183,7 @@ func collectStockBasicInfo(services *service.Services) error {
 func collectAndPersistDailyKLineData(services *service.Services) error {
 	logger.Info("开始采集日K线数据...")
 
-	executor := utils.NewConcurrentExecutor(100, 45*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -244,7 +235,7 @@ func collectAndPersistDailyKLineData(services *service.Services) error {
 // collectAndPersistWeeklyKLineData 采集并保存周K线数据
 func collectAndPersistWeeklyKLineData(services *service.Services) error {
 	logger.Info("开始采集周K线数据...")
-	executor := utils.NewConcurrentExecutor(100, 45*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -293,7 +284,7 @@ func collectAndPersistWeeklyKLineData(services *service.Services) error {
 // collectAndPersistMonthlyKLineData 采集并保存月K线数据
 func collectAndPersistMonthlyKLineData(services *service.Services) error {
 	logger.Info("开始采集月K线数据...")
-	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 	stocks, err := services.DataService.GetAllStocks()
@@ -336,7 +327,7 @@ func collectAndPersistMonthlyKLineData(services *service.Services) error {
 // collectAndPersistYearlyKLineData 采集并保存年K线数据
 func collectAndPersistYearlyKLineData(services *service.Services) error {
 	logger.Info("开始采集年K线数据...")
-	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 	stocks, err := services.DataService.GetAllStocks()
@@ -625,7 +616,7 @@ func syncStockYearlyKLine(services *service.Services, stock *model.Stock) error 
 // collectAndPersistPerformanceReports 采集并保存业绩报表数据
 func collectAndPersistPerformanceReports(services *service.Services) error {
 	logger.Info("开始采集业绩报表数据...")
-	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(1, 30*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -686,7 +677,7 @@ func collectAndPersistPerformanceReports(services *service.Services) error {
 func collectAndPersistShareholderCounts(services *service.Services) error {
 	logger.Info("开始采集股东人数数据...")
 
-	executor := utils.NewConcurrentExecutor(50, 45*time.Minute) // 最大50个并发，45分钟超时
+	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大50个并发，45分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 

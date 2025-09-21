@@ -27,7 +27,7 @@ func TestEastMoneyCollector_RateLimit(t *testing.T) {
 	// 发送3个请求
 	for i := 0; i < 3; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_, err := collector.makeRequestWithContext(ctx, "https://httpbin.org/delay/0")
+		_, err := collector.makeRequestWithContext(ctx, "https://httpbin.org/delay/0", "")
 		cancel()
 
 		if err != nil {
@@ -133,7 +133,7 @@ func BenchmarkEastMoneyCollector_RateLimit(b *testing.B) {
 		for pb.Next() {
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			// 使用一个快速响应的测试URL
-			collector.makeRequestWithContext(ctx, "https://httpbin.org/status/200")
+			collector.makeRequestWithContext(ctx, "https://httpbin.org/status/200", "")
 			cancel()
 		}
 	})

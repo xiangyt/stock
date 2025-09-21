@@ -81,6 +81,10 @@ func (s *DataService) SyncStockList() error {
 
 	s.logger.Infof("Fetched %d stocks from EastMoney", len(stocks))
 
+	if err := s.UpdateALLStockStatus(false); err != nil {
+		return fmt.Errorf("failed to reset stock status err: %v", err)
+	}
+
 	for i, stock := range stocks {
 		if strings.HasPrefix(stock.Name, "XD") { // 除权日清理所有k线数据
 			_ = s.dailyDataRepo.DeleteDailyData(stock.TsCode, time.Time{})
@@ -131,6 +135,24 @@ func (s *DataService) UpdateStockStatus(tsCode string, isActive bool) error {
 	}
 
 	s.logger.Infof("成功更新股票 %s 状态为: %v", tsCode, isActive)
+	return nil
+}
+
+// UpdateALLStockStatus 更新所有股票状态
+func (s *DataService) UpdateALLStockStatus(isActive bool) error {
+	s.logger.Infof("更新所有股票状态为: %v", isActive)
+
+	// 使用数据库直接更新股票状态
+	result := s.db.Model(&model.Stock{}).Where("ts_code != ?", "").Update("is_active", isActive)
+	if result.Error != nil {
+		return fmt.Errorf("更新股票状态失败: %v", result.Error)
+	}
+
+	//if result.RowsAffected == 0 {
+	//	return fmt.Errorf("未找到股票 %s", tsCode)
+	//}
+	//
+	//s.logger.Infof("成功更新股票 %s 状态为: %v", tsCode, isActive)
 	return nil
 }
 
