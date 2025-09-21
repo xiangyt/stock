@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
+	logger "stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
 
 	"gorm.io/gorm"
 )
@@ -13,11 +13,11 @@ import (
 // MonthlyDataRepository 月K线数据仓库
 type MonthlyDataRepository struct {
 	db     *gorm.DB
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 // NewMonthlyDataRepository 创建月K线数据仓库
-func NewMonthlyDataRepository(db *gorm.DB, logger *utils.Logger) *MonthlyDataRepository {
+func NewMonthlyDataRepository(db *gorm.DB, logger *logger.Logger) *MonthlyDataRepository {
 	return &MonthlyDataRepository{
 		db:     db,
 		logger: logger,

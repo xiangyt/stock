@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	logger "stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
 
 	"gorm.io/gorm"
 )
@@ -15,11 +15,11 @@ import (
 // DailyDataRepository 日线数据仓库
 type DailyDataRepository struct {
 	db     *gorm.DB
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 // NewDailyDataRepository 创建日线数据仓库
-func NewDailyDataRepository(db *gorm.DB, logger *utils.Logger) *DailyDataRepository {
+func NewDailyDataRepository(db *gorm.DB, logger *logger.Logger) *DailyDataRepository {
 	return &DailyDataRepository{
 		db:     db,
 		logger: logger,

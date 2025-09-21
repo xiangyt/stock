@@ -3,9 +3,10 @@ package utils
 import (
 	"context"
 	"errors"
-	"stock/internal/config"
 	"testing"
 	"time"
+
+	logger "stock/internal/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,8 +49,7 @@ func (t *MockTask) GetDescription() string {
 }
 
 func TestConcurrentExecutor_Execute(t *testing.T) {
-	logger := NewLogger(config.LogConfig{Level: "info"})
-	executor := NewConcurrentExecutor(2, logger, 5*time.Second)
+	executor := NewConcurrentExecutor(2, 5*time.Second)
 	defer executor.Close()
 
 	// 测试成功任务
@@ -70,8 +70,7 @@ func TestConcurrentExecutor_Execute(t *testing.T) {
 }
 
 func TestConcurrentExecutor_ExecuteWithFailure(t *testing.T) {
-	logger := NewLogger(config.LogConfig{Level: "info"})
-	executor := NewConcurrentExecutor(2, logger, 5*time.Second)
+	executor := NewConcurrentExecutor(2, 5*time.Second)
 	defer executor.Close()
 
 	// 测试失败任务
@@ -92,8 +91,7 @@ func TestConcurrentExecutor_ExecuteWithFailure(t *testing.T) {
 }
 
 func TestConcurrentExecutor_ExecuteBatch(t *testing.T) {
-	logger := NewLogger(config.LogConfig{Level: "info"})
-	executor := NewConcurrentExecutor(3, logger, 5*time.Second)
+	executor := NewConcurrentExecutor(3, 5*time.Second)
 	defer executor.Close()
 
 	// 创建批量任务
@@ -127,8 +125,7 @@ func TestConcurrentExecutor_ExecuteBatch(t *testing.T) {
 }
 
 func TestConcurrentExecutor_ExecuteWithRetry(t *testing.T) {
-	logger := NewLogger(config.LogConfig{Level: "info"})
-	executor := NewConcurrentExecutor(1, logger, 5*time.Second)
+	executor := NewConcurrentExecutor(1, 5*time.Second)
 	defer executor.Close()
 
 	// 测试重试机制
@@ -147,8 +144,7 @@ func TestConcurrentExecutor_ExecuteWithRetry(t *testing.T) {
 }
 
 func TestConcurrentExecutor_Timeout(t *testing.T) {
-	logger := NewLogger(config.LogConfig{Level: "info"})
-	executor := NewConcurrentExecutor(1, logger, 100*time.Millisecond)
+	executor := NewConcurrentExecutor(1, 100*time.Millisecond)
 	defer executor.Close()
 
 	// 创建一个会超时的任务
@@ -167,8 +163,7 @@ func TestConcurrentExecutor_Timeout(t *testing.T) {
 }
 
 func TestWorkerPool(t *testing.T) {
-	logger := NewLogger(config.LogConfig{Level: "info"})
-	pool := NewWorkerPool(2, 10, logger, 5*time.Second)
+	pool := NewWorkerPool(2, 10, logger.GetGlobalLogger(), 5*time.Second)
 	defer pool.Close()
 
 	// 提交任务
@@ -222,9 +217,8 @@ func TestSimpleTask(t *testing.T) {
 }
 
 func TestConcurrentExecutor_ConcurrencyLimit(t *testing.T) {
-	logger := NewLogger(config.LogConfig{Level: "info"})
 	maxConcurrency := 2
-	executor := NewConcurrentExecutor(maxConcurrency, logger, 5*time.Second)
+	executor := NewConcurrentExecutor(maxConcurrency, 5*time.Second)
 	defer executor.Close()
 
 	// 创建多个长时间运行的任务
@@ -252,8 +246,7 @@ func TestConcurrentExecutor_ConcurrencyLimit(t *testing.T) {
 
 // BenchmarkConcurrentExecutor 性能测试
 func BenchmarkConcurrentExecutor(b *testing.B) {
-	logger := NewLogger(config.LogConfig{Level: "info"})
-	executor := NewConcurrentExecutor(4, logger, 5*time.Second)
+	executor := NewConcurrentExecutor(4, 5*time.Second)
 	defer executor.Close()
 
 	b.ResetTimer()

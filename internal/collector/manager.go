@@ -5,19 +5,19 @@ import (
 	"sync"
 	"time"
 
+	"stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
 )
 
 // CollectorManager 采集器管理器
 type CollectorManager struct {
 	collectors map[string]DataCollector
-	logger     *utils.Logger
+	logger     *logger.Logger
 	mu         sync.RWMutex
 }
 
 // NewCollectorManager 创建采集器管理器
-func NewCollectorManager(logger *utils.Logger) *CollectorManager {
+func NewCollectorManager(logger *logger.Logger) *CollectorManager {
 	return &CollectorManager{
 		collectors: make(map[string]DataCollector),
 		logger:     logger,

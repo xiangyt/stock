@@ -2,13 +2,13 @@ package service
 
 import (
 	"fmt"
-	"stock/internal/repository"
 	"sync"
 	"time"
 
 	"stock/internal/collector"
+	"stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
+	"stock/internal/repository"
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -28,12 +28,12 @@ var (
 )
 
 // GetKLineService 获取K线数据服务单例
-func GetKLineService(db *gorm.DB, logger *logrus.Logger, collectorManager *collector.CollectorManager) *KLineService {
+func GetKLineService(db *gorm.DB, log *logrus.Logger, collectorManager *collector.CollectorManager) *KLineService {
 	klineServiceOnce.Do(func() {
-		utilsLogger := &utils.Logger{Logger: logger}
+		utilsLogger := logger.GetGlobalLogger()
 		klineServiceInstance = &KLineService{
 			db:               db,
-			logger:           logger,
+			logger:           log,
 			collectorManager: collectorManager,
 			dailyDataRepo:    repository.NewDailyDataRepository(db, utilsLogger),
 		}

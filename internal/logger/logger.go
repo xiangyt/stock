@@ -1,4 +1,4 @@
-package utils
+package logger
 
 import (
 	"io"
@@ -47,7 +47,7 @@ func NewLogger(cfg config.LogConfig) *Logger {
 	if cfg.File != "" {
 		// 确保日志目录存在
 		if err := os.MkdirAll(filepath.Dir(cfg.File), 0755); err != nil {
-			logger.Errorf("Failed to create log directory: %v", err)
+			logger.Errorf("Failed to create logger directory: %v", err)
 		} else {
 			fileWriter := &lumberjack.Logger{
 				Filename:   cfg.File,

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"stock/internal/utils"
+	"stock/internal/logger"
 )
 
 // CollectorType 采集器类型
@@ -19,11 +19,11 @@ const (
 
 // CollectorFactory 采集器工厂
 type CollectorFactory struct {
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 // NewCollectorFactory 创建采集器工厂
-func NewCollectorFactory(logger *utils.Logger) *CollectorFactory {
+func NewCollectorFactory(logger *logger.Logger) *CollectorFactory {
 	return &CollectorFactory{
 		logger: logger,
 	}

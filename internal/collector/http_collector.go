@@ -8,19 +8,19 @@ import (
 	"strings"
 	"time"
 
+	"stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
 )
 
 // HTTPCollector HTTP数据采集器
 type HTTPCollector struct {
 	BaseCollector
 	client *http.Client
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 // NewHTTPCollector 创建HTTP采集器
-func NewHTTPCollector(config CollectorConfig, logger *utils.Logger) *HTTPCollector {
+func NewHTTPCollector(config CollectorConfig, logger *logger.Logger) *HTTPCollector {
 	return &HTTPCollector{
 		BaseCollector: BaseCollector{
 			Config:    config,

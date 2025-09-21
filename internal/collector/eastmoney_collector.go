@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
 
 	"golang.org/x/time/rate"
 )
@@ -49,13 +49,13 @@ type KLineResponse struct {
 type EastMoneyCollector struct {
 	BaseCollector
 	client  *http.Client
-	logger  *utils.Logger
+	logger  *logger.Logger
 	parser  *KLineParser
 	limiter *rate.Limiter // 限流器
 }
 
 // NewEastMoneyCollector 创建东方财富采集器
-func NewEastMoneyCollector(logger *utils.Logger) *EastMoneyCollector {
+func NewEastMoneyCollector(logger *logger.Logger) *EastMoneyCollector {
 	config := CollectorConfig{
 		Name:      "eastmoney",
 		BaseURL:   "https://push2.eastmoney.com",

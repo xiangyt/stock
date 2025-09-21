@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,6 +11,7 @@ import (
 	"stock/internal/collector"
 	"stock/internal/config"
 	"stock/internal/database"
+	"stock/internal/logger"
 	"stock/internal/model"
 	"stock/internal/repository"
 	"stock/internal/service"
@@ -25,36 +25,24 @@ func main() {
 	// 初始化配置
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		fmt.Printf("Failed to load config: %v\n", err)
+		os.Exit(1)
 	}
 
-	// 初始化日志
-	logger := utils.NewLogger(cfg.Log)
+	// 初始化全局日志器
+	logger.InitGlobalLogger(cfg.Log)
 
 	// 初始化数据库连接
-	dbManager, err := database.NewDatabase(&cfg.Database, logger)
+	dbManager, err := database.NewDatabase(&cfg.Database, logger.GetGlobalLogger())
 	if err != nil {
 		logger.Fatalf("Failed to connect to database: %v", err)
 	}
 	db := dbManager.DB
 
 	// 初始化服务
-	services, err := initServicesWithDB(cfg, db, logger)
+	services, err := initServicesWithDB(cfg, db)
 	if err != nil {
 		logger.Fatalf("Failed to initialize services: %v", err)
-	}
-
-	// 检查是否为测试模式
-	if len(os.Args) > 1 {
-		testMode := os.Args[1]
-		switch testMode {
-		case "migrate":
-			runMigration(cfg, logger)
-			return
-		case "help":
-			printTestHelp()
-			return
-		}
 	}
 
 	logger.Info("Worker starting...")
@@ -63,7 +51,7 @@ func main() {
 	c := cron.New(cron.WithSeconds())
 
 	// 设置定时任务
-	setupCronJobs(c, services, logger)
+	setupCronJobs(c, services)
 
 	// 启动调度器
 	c.Start()
@@ -83,7 +71,7 @@ func main() {
 	logger.Info("Worker exited")
 }
 
-func setupCronJobs(c *cron.Cron, services *service.Services, logger *utils.Logger) {
+func setupCronJobs(c *cron.Cron, services *service.Services) {
 	// 每天早上8点执行主要任务
 	c.AddFunc("0 0 8 * * *", func() {
 		logger.Info("开始执行每日早上8点定时任务...")
@@ -91,49 +79,48 @@ func setupCronJobs(c *cron.Cron, services *service.Services, logger *utils.Logge
 	})
 
 	// 每天晚上10点执行主要任务
-	c.AddFunc("0 0 22 * * *", func() {
-		logger.Info("开始执行每日晚上10点定时任务...")
-		executeNightlyTasks(services, logger)
+	c.AddFunc("0 0 20 * * *", func() {
+		logger.Info("开始执行每日晚上8点定时任务...")
+		executeNightlyTasks(services)
 	})
 
 	logger.Info("定时任务配置完成！")
 }
 
 // executeNightlyTasks 执行每日晚上10点的主要任务
-func executeNightlyTasks(services *service.Services, logger *utils.Logger) {
+func executeNightlyTasks(services *service.Services) {
 	// 日K线数据采集 - 第一优先级
-	_ = collectAndPersistDailyKLineData(services, logger)
+	_ = collectAndPersistDailyKLineData(services)
 	// 周K线数据采集 - 第二优先级
-	_ = collectAndPersistWeeklyKLineData(services, logger)
+	_ = collectAndPersistWeeklyKLineData(services)
 	// 月K线数据采集 - 第三优先级
-	_ = collectAndPersistMonthlyKLineData(services, logger)
+	_ = collectAndPersistMonthlyKLineData(services)
 	// 年K线数据采集 - 第四优先级
-	_ = collectAndPersistYearlyKLineData(services, logger)
+	_ = collectAndPersistYearlyKLineData(services)
 	// 业绩报表数据采集 - 第五优先级
-	_ = collectAndPersistPerformanceReports(services, logger)
+	_ = collectAndPersistPerformanceReports(services)
 	// 股东人数数据采集 - 第六优先级
-	_ = collectAndPersistShareholderCounts(services, logger)
-
+	_ = collectAndPersistShareholderCounts(services)
 }
 
 // initServicesWithDB 初始化带数据库连接的服务
-func initServicesWithDB(cfg *config.Config, db *gorm.DB, logger *utils.Logger) (*service.Services, error) {
+func initServicesWithDB(cfg *config.Config, db *gorm.DB) (*service.Services, error) {
 	logger.Info("初始化服务...")
 
 	// 创建基础服务
-	services, err := service.NewServices(cfg, logger)
+	services, err := service.NewServices(cfg, logger.GetGlobalLogger())
 	if err != nil {
 		return nil, fmt.Errorf("创建基础服务失败: %v", err)
 	}
 
 	// 初始化需要数据库连接的服务
-	services.DataService = service.NewDataService(db, logger)
+	services.DataService = service.NewDataService(db, logger.GetGlobalLogger())
 
 	// 为PerformanceService创建必要的依赖
 	performanceRepo := repository.NewPerformanceRepository(db)
-	stockRepo := repository.NewStockRepository(db, logger)
-	eastMoneyCollector := collector.NewEastMoneyCollector(logger)
-	services.PerformanceService = service.NewPerformanceService(performanceRepo, stockRepo, eastMoneyCollector, logger)
+	stockRepo := repository.NewStockRepository(db, logger.GetGlobalLogger())
+	eastMoneyCollector := collector.NewEastMoneyCollector(logger.GetGlobalLogger())
+	services.PerformanceService = service.NewPerformanceService(performanceRepo, stockRepo, eastMoneyCollector, logger.GetGlobalLogger())
 
 	// 为ShareholderService创建必要的依赖
 	shareholderRepo := repository.NewShareholderRepository(db)
@@ -144,7 +131,7 @@ func initServicesWithDB(cfg *config.Config, db *gorm.DB, logger *utils.Logger) (
 }
 
 // collectStockBasicInfo 采集股票基础信息
-func collectStockBasicInfo(services *service.Services, logger *utils.Logger) error {
+func collectStockBasicInfo(services *service.Services) error {
 	logger.Info("开始采集股票基础信息...")
 
 	// 检查DataService是否已初始化
@@ -162,30 +149,11 @@ func collectStockBasicInfo(services *service.Services, logger *utils.Logger) err
 	return nil
 }
 
-// runMigration 运行数据库迁移
-func runMigration(cfg *config.Config, logger *utils.Logger) {
-	logger.Info("开始数据库迁移...")
-
-	// 初始化数据库连接
-	dbManager, err := database.NewDatabase(&cfg.Database, logger)
-	if err != nil {
-		logger.Fatalf("Failed to connect to database: %v", err)
-	}
-	defer dbManager.Close()
-
-	// 执行自动迁移
-	if err := dbManager.AutoMigrate(); err != nil {
-		logger.Fatalf("数据库迁移失败: %v", err)
-	}
-
-	logger.Info("数据库迁移完成!")
-}
-
 // collectAndPersistDailyKLineData 采集并保存日K线数据
-func collectAndPersistDailyKLineData(services *service.Services, logger *utils.Logger) error {
+func collectAndPersistDailyKLineData(services *service.Services) error {
 	logger.Info("开始采集日K线数据...")
 
-	executor := utils.NewConcurrentExecutor(100, logger, 30*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -198,16 +166,20 @@ func collectAndPersistDailyKLineData(services *service.Services, logger *utils.L
 	logger.Infof("从数据库获取到 %d 只股票，开始采集日K线数据", len(stocks))
 
 	// 创建任务列表
-	tasks := make([]utils.Task, len(stocks))
-	for i, stock := range stocks {
+	tasks := make([]utils.Task, 0, len(stocks))
+	for _, stock := range stocks {
 		stock := stock // 避免闭包问题
-		tasks[i] = &utils.SimpleTask{
+		if !stock.IsActive {
+			logger.Debugf("股票 %s 不活跃，跳过日K线数据同步", stock.TsCode)
+			continue
+		}
+		tasks = append(tasks, &utils.SimpleTask{
 			ID:          fmt.Sprintf("daily_kline_%s", stock.TsCode),
 			Description: fmt.Sprintf("采集股票 %s 的日K线数据", stock.TsCode),
 			Func: func(ctx context.Context) error {
-				return syncStockDailyKLine(services, stock, logger)
+				return syncStockDailyKLine(services, stock)
 			},
-		}
+		})
 	}
 
 	// 执行任务
@@ -230,8 +202,169 @@ func collectAndPersistDailyKLineData(services *service.Services, logger *utils.L
 	return nil
 }
 
+// collectAndPersistWeeklyKLineData 采集并保存周K线数据
+func collectAndPersistWeeklyKLineData(services *service.Services) error {
+	logger.Info("开始采集周K线数据...")
+	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
+	defer executor.Close()
+	ctx := context.Background()
+
+	// 从数据库获取所有活跃股票列表
+	stocks, err := services.DataService.GetAllStocks()
+	if err != nil {
+		return fmt.Errorf("获取股票列表失败: %v", err)
+	}
+
+	logger.Infof("从数据库获取到 %d 只股票，开始采集周K线数据", len(stocks))
+
+	// 创建任务列表
+	tasks := make([]utils.Task, 0, len(stocks))
+	for _, stock := range stocks {
+		stock := stock // 避免闭包问题
+		if !stock.IsActive {
+			logger.Debugf("股票 %s 不活跃，跳过周K线数据同步", stock.TsCode)
+			continue
+		}
+		tasks = append(tasks, &utils.SimpleTask{
+			ID:          fmt.Sprintf("weekly_kline_%s", stock.TsCode),
+			Description: fmt.Sprintf("采集股票 %s 的周K线数据", stock.TsCode),
+			Func: func(ctx context.Context) error {
+				return syncStockWeeklyKLine(services, stock)
+			},
+		})
+	}
+
+	// 执行任务
+	results, stats := executor.ExecuteBatch(ctx, tasks)
+
+	// 统计结果
+	successCount := 0
+	for _, result := range results {
+		if result.Success {
+			successCount++
+		}
+	}
+
+	logger.Infof("周K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.TotalDuration)
+
+	return nil
+}
+
+// collectAndPersistMonthlyKLineData 采集并保存月K线数据
+func collectAndPersistMonthlyKLineData(services *service.Services) error {
+	logger.Info("开始采集月K线数据...")
+	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
+	defer executor.Close()
+	ctx := context.Background()
+	stocks, err := services.DataService.GetAllStocks()
+	if err != nil {
+		return fmt.Errorf("获取股票列表失败: %v", err)
+	}
+
+	logger.Infof("从数据库获取到 %d 只股票，开始采集月K线数据", len(stocks))
+
+	tasks := make([]utils.Task, 0, len(stocks))
+	for _, stock := range stocks {
+		stock := stock
+		if !stock.IsActive {
+			logger.Debugf("股票 %s 不活跃，跳过月K线数据同步", stock.TsCode)
+			continue
+		}
+		tasks = append(tasks, &utils.SimpleTask{
+			ID:          fmt.Sprintf("monthly_kline_%s", stock.TsCode),
+			Description: fmt.Sprintf("采集股票 %s 的月K线数据", stock.TsCode),
+			Func: func(ctx context.Context) error {
+				return syncStockMonthlyKLine(services, stock)
+			},
+		})
+	}
+
+	results, stats := executor.ExecuteBatch(ctx, tasks)
+	successCount := 0
+	for _, result := range results {
+		if result.Success {
+			successCount++
+		}
+	}
+
+	logger.Infof("月K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.TotalDuration)
+
+	return nil
+}
+
+// collectAndPersistYearlyKLineData 采集并保存年K线数据
+func collectAndPersistYearlyKLineData(services *service.Services) error {
+	logger.Info("开始采集年K线数据...")
+	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
+	defer executor.Close()
+	ctx := context.Background()
+	stocks, err := services.DataService.GetAllStocks()
+	if err != nil {
+		return fmt.Errorf("获取股票列表失败: %v", err)
+	}
+
+	logger.Infof("从数据库获取到 %d 只股票，开始采集年K线数据", len(stocks))
+
+	tasks := make([]utils.Task, 0, len(stocks))
+	for _, stock := range stocks {
+		stock := stock
+		if !stock.IsActive {
+			logger.Debugf("股票 %s 不活跃，跳过年K线数据同步", stock.TsCode)
+			continue
+		}
+		tasks = append(tasks, &utils.SimpleTask{
+			ID:          fmt.Sprintf("yearly_kline_%s", stock.TsCode),
+			Description: fmt.Sprintf("采集股票 %s 的年K线数据", stock.TsCode),
+			Func: func(ctx context.Context) error {
+				return syncStockYearlyKLine(services, stock)
+			},
+		})
+	}
+
+	results, stats := executor.ExecuteBatch(ctx, tasks)
+	successCount := 0
+	for _, result := range results {
+		if result.Success {
+			successCount++
+		}
+	}
+
+	logger.Infof("年K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime))
+
+	return nil
+}
+
+// markStockInactive 标记股票为非活跃状态
+func markStockInactive(services *service.Services, tsCode string) error {
+	logger.Infof("标记股票 %s 为非活跃状态", tsCode)
+
+	// 获取股票信息
+	stock, err := services.DataService.GetStockInfo(tsCode)
+	if err != nil {
+		return fmt.Errorf("获取股票信息失败: %v", err)
+	}
+
+	// 检查股票是否已经是非活跃状态
+	if !stock.IsActive {
+		logger.Debugf("股票 %s 已经是非活跃状态", tsCode)
+		return nil
+	}
+
+	// 更新股票状态为非活跃
+	err = services.DataService.UpdateStockStatus(tsCode, false)
+	if err != nil {
+		return fmt.Errorf("更新股票状态失败: %v", err)
+	}
+
+	logger.Infof("成功标记股票 %s 为非活跃状态", tsCode)
+	return nil
+}
+
 // syncStockDailyKLine 同步单只股票的日K线数据
-func syncStockDailyKLine(services *service.Services, stock *model.Stock, logger *utils.Logger) error {
+func syncStockDailyKLine(services *service.Services, stock *model.Stock) error {
 	// 获取该股票最新的日K线数据
 	latestData, err := services.DataService.GetLatestPrice(stock.TsCode)
 	if err != nil {
@@ -277,7 +410,7 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock, logger 
 		oneMonthAgo := time.Now().AddDate(0, -1, 0)
 		if tradeDate.Before(oneMonthAgo) {
 			// 标记为非活跃股票
-			if err := markStockInactive(services, stock.TsCode, logger); err != nil {
+			if err := markStockInactive(services, stock.TsCode); err != nil {
 				logger.Errorf("标记股票 %s 为非活跃状态失败: %v", stock.TsCode, err)
 			}
 		}
@@ -285,172 +418,11 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock, logger 
 	return nil
 }
 
-// markStockInactive 标记股票为非活跃状态
-func markStockInactive(services *service.Services, tsCode string, logger *utils.Logger) error {
-	logger.Infof("标记股票 %s 为非活跃状态", tsCode)
-
-	// 获取股票信息
-	stock, err := services.DataService.GetStockInfo(tsCode)
-	if err != nil {
-		return fmt.Errorf("获取股票信息失败: %v", err)
-	}
-
-	// 检查股票是否已经是非活跃状态
-	if !stock.IsActive {
-		logger.Debugf("股票 %s 已经是非活跃状态", tsCode)
-		return nil
-	}
-
-	// 更新股票状态为非活跃
-	err = services.DataService.UpdateStockStatus(tsCode, false)
-	if err != nil {
-		return fmt.Errorf("更新股票状态失败: %v", err)
-	}
-
-	logger.Infof("成功标记股票 %s 为非活跃状态", tsCode)
-	return nil
-}
-
-// collectAndPersistWeeklyKLineData 采集并保存周K线数据
-func collectAndPersistWeeklyKLineData(services *service.Services, logger *utils.Logger) error {
-	logger.Info("开始采集周K线数据...")
-	executor := utils.NewConcurrentExecutor(100, logger, 30*time.Minute) // 最大100个并发，30分钟超时
-	defer executor.Close()
-	ctx := context.Background()
-
-	// 从数据库获取所有活跃股票列表
-	stocks, err := services.DataService.GetAllStocks()
-	if err != nil {
-		return fmt.Errorf("获取股票列表失败: %v", err)
-	}
-
-	logger.Infof("从数据库获取到 %d 只股票，开始采集周K线数据", len(stocks))
-
-	// 创建任务列表
-	tasks := make([]utils.Task, len(stocks))
-	for _, stock := range stocks {
-		stock := stock // 避免闭包问题
-		if !stock.IsActive {
-			logger.Debugf("股票 %s 不活跃，跳过年K线数据同步", stock.TsCode)
-			continue
-		}
-		tasks = append(tasks, &utils.SimpleTask{
-			ID:          fmt.Sprintf("weekly_kline_%s", stock.TsCode),
-			Description: fmt.Sprintf("采集股票 %s 的周K线数据", stock.TsCode),
-			Func: func(ctx context.Context) error {
-				return syncStockWeeklyKLine(services, stock, logger)
-			},
-		})
-	}
-
-	// 执行任务
-	results, stats := executor.ExecuteBatch(ctx, tasks)
-
-	// 统计结果
-	successCount := 0
-	for _, result := range results {
-		if result.Success {
-			successCount++
-		}
-	}
-
-	logger.Infof("周K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v",
-		stats.TotalTasks, successCount, stats.FailedTasks, stats.TotalDuration)
-
-	return nil
-}
-
-// collectAndPersistMonthlyKLineData 采集并保存月K线数据
-func collectAndPersistMonthlyKLineData(services *service.Services, logger *utils.Logger) error {
-	logger.Info("开始采集月K线数据...")
-	executor := utils.NewConcurrentExecutor(100, logger, 30*time.Minute) // 最大100个并发，30分钟超时
-	defer executor.Close()
-	ctx := context.Background()
-	stocks, err := services.DataService.GetAllStocks()
-	if err != nil {
-		return fmt.Errorf("获取股票列表失败: %v", err)
-	}
-
-	logger.Infof("从数据库获取到 %d 只股票，开始采集月K线数据", len(stocks))
-
-	tasks := make([]utils.Task, len(stocks))
-	for _, stock := range stocks {
-		stock := stock
-		if !stock.IsActive {
-			logger.Debugf("股票 %s 不活跃，跳过年K线数据同步", stock.TsCode)
-			continue
-		}
-		tasks = append(tasks, &utils.SimpleTask{
-			ID:          fmt.Sprintf("monthly_kline_%s", stock.TsCode),
-			Description: fmt.Sprintf("采集股票 %s 的月K线数据", stock.TsCode),
-			Func: func(ctx context.Context) error {
-				return syncStockMonthlyKLine(services, stock, logger)
-			},
-		})
-	}
-
-	results, stats := executor.ExecuteBatch(ctx, tasks)
-	successCount := 0
-	for _, result := range results {
-		if result.Success {
-			successCount++
-		}
-	}
-
-	logger.Infof("月K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v",
-		stats.TotalTasks, successCount, stats.FailedTasks, stats.TotalDuration)
-
-	return nil
-}
-
-// collectAndPersistYearlyKLineData 采集并保存年K线数据
-func collectAndPersistYearlyKLineData(services *service.Services, logger *utils.Logger) error {
-	logger.Info("开始采集年K线数据...")
-	executor := utils.NewConcurrentExecutor(100, logger, 30*time.Minute) // 最大100个并发，30分钟超时
-	defer executor.Close()
-	ctx := context.Background()
-	stocks, err := services.DataService.GetAllStocks()
-	if err != nil {
-		return fmt.Errorf("获取股票列表失败: %v", err)
-	}
-
-	logger.Infof("从数据库获取到 %d 只股票，开始采集年K线数据", len(stocks))
-
-	tasks := make([]utils.Task, 0, len(stocks))
-	for _, stock := range stocks {
-		stock := stock
-		if !stock.IsActive {
-			logger.Debugf("股票 %s 不活跃，跳过年K线数据同步", stock.TsCode)
-			continue
-		}
-		tasks = append(tasks, &utils.SimpleTask{
-			ID:          fmt.Sprintf("yearly_kline_%s", stock.TsCode),
-			Description: fmt.Sprintf("采集股票 %s 的年K线数据", stock.TsCode),
-			Func: func(ctx context.Context) error {
-				return syncStockYearlyKLine(services, stock, logger)
-			},
-		})
-	}
-
-	results, stats := executor.ExecuteBatch(ctx, tasks)
-	successCount := 0
-	for _, result := range results {
-		if result.Success {
-			successCount++
-		}
-	}
-
-	logger.Infof("年K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v",
-		stats.TotalTasks, successCount, stats.FailedTasks, stats.TotalDuration)
-
-	return nil
-}
-
 // syncStockWeeklyKLine 同步单只股票的周K线数据
-func syncStockWeeklyKLine(services *service.Services, stock *model.Stock, logger *utils.Logger) error {
+func syncStockWeeklyKLine(services *service.Services, stock *model.Stock) error {
 
 	// 第二步：查出该股票最新的一条周K线数据
-	klinePersistence := service.GetKLinePersistenceService(services.DataService.GetDB(), logger)
+	klinePersistence := service.GetKLinePersistenceService(services.DataService.GetDB(), logger.GetGlobalLogger())
 	latestWeeklyData, err := klinePersistence.GetLatestWeeklyData(stock.TsCode)
 	if err != nil {
 		return fmt.Errorf("获取最新周K线数据失败: %v", err)
@@ -499,10 +471,10 @@ func syncStockWeeklyKLine(services *service.Services, stock *model.Stock, logger
 }
 
 // syncStockMonthlyKLine 同步单只股票的月K线数据
-func syncStockMonthlyKLine(services *service.Services, stock *model.Stock, logger *utils.Logger) error {
+func syncStockMonthlyKLine(services *service.Services, stock *model.Stock) error {
 
 	// 第二步：查出该股票最新的一条月K线数据
-	klinePersistence := service.GetKLinePersistenceService(services.DataService.GetDB(), logger)
+	klinePersistence := service.GetKLinePersistenceService(services.DataService.GetDB(), logger.GetGlobalLogger())
 	latestMonthlyData, err := klinePersistence.GetLatestMonthlyData(stock.TsCode)
 	if err != nil {
 		return fmt.Errorf("获取最新月K线数据失败: %v", err)
@@ -551,7 +523,7 @@ func syncStockMonthlyKLine(services *service.Services, stock *model.Stock, logge
 }
 
 // syncStockYearlyKLine 同步单只股票的年K线数据
-func syncStockYearlyKLine(services *service.Services, stock *model.Stock, logger *utils.Logger) error {
+func syncStockYearlyKLine(services *service.Services, stock *model.Stock) error {
 	// 第一步：检查股票是否活跃，不活跃直接跳过
 	if !stock.IsActive {
 		logger.Debugf("股票 %s 不活跃，跳过年K线数据同步", stock.TsCode)
@@ -559,7 +531,7 @@ func syncStockYearlyKLine(services *service.Services, stock *model.Stock, logger
 	}
 
 	// 第二步：查出该股票最新的一条年K线数据
-	klinePersistence := service.GetKLinePersistenceService(services.DataService.GetDB(), logger)
+	klinePersistence := service.GetKLinePersistenceService(services.DataService.GetDB(), logger.GetGlobalLogger())
 	latestYearlyData, err := klinePersistence.GetLatestYearlyData(stock.TsCode)
 	if err != nil {
 		return fmt.Errorf("获取最新年K线数据失败: %v", err)
@@ -608,9 +580,9 @@ func syncStockYearlyKLine(services *service.Services, stock *model.Stock, logger
 }
 
 // collectAndPersistPerformanceReports 采集并保存业绩报表数据
-func collectAndPersistPerformanceReports(services *service.Services, logger *utils.Logger) error {
+func collectAndPersistPerformanceReports(services *service.Services) error {
 	logger.Info("开始采集业绩报表数据...")
-	executor := utils.NewConcurrentExecutor(100, logger, 30*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -628,7 +600,7 @@ func collectAndPersistPerformanceReports(services *service.Services, logger *uti
 	for _, stock := range stocks {
 		// 只处理活跃股票
 		if !stock.IsActive {
-			logger.Debugf("股票 %s 不活跃，跳过股东人数数据采集", stock.TsCode)
+			logger.Debugf("股票 %s 不活跃，跳过业绩报表数据采集", stock.TsCode)
 			continue
 		}
 
@@ -667,23 +639,11 @@ func collectAndPersistPerformanceReports(services *service.Services, logger *uti
 	return nil
 }
 
-// printTestHelp 打印测试帮助信息
-func printTestHelp() {
-	fmt.Println("测试模式使用说明:")
-	fmt.Println("  go run cmd/worker/main.go test-stock    - 测试股票基本数据采集")
-	fmt.Println("  go run cmd/worker/main.go test-kline    - 测试所有K线数据采集")
-	fmt.Println("  go run cmd/worker/main.go test-daily    - 测试日K线数据采集")
-	fmt.Println("  go run cmd/worker/main.go test-weekly   - 测试周K线数据采集")
-	fmt.Println("  go run cmd/worker/main.go test-monthly  - 测试月K线数据采集")
-	fmt.Println("  go run cmd/worker/main.go test-yearly   - 测试年K线数据采集")
-	fmt.Println("  go run cmd/worker/main.go help          - 显示此帮助信息")
-}
-
 // collectAndPersistShareholderCounts 采集并保存股东人数数据
-func collectAndPersistShareholderCounts(services *service.Services, logger *utils.Logger) error {
+func collectAndPersistShareholderCounts(services *service.Services) error {
 	logger.Info("开始采集股东人数数据...")
 
-	executor := utils.NewConcurrentExecutor(50, logger, 45*time.Minute) // 最大50个并发，45分钟超时
+	executor := utils.NewConcurrentExecutor(50, 45*time.Minute) // 最大50个并发，45分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 

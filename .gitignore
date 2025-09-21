@@ -15,6 +15,7 @@ yarn.lock
 *.test
 *.out
 go.work
+go.sum
 
 # Build
 build/

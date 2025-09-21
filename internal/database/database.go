@@ -2,25 +2,24 @@ package database
 
 import (
 	"fmt"
-
 	"stock/internal/config"
+	"stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 // Database 数据库管理器
 type Database struct {
 	DB     *gorm.DB
 	config *config.DatabaseConfig
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 // NewDatabase 创建数据库连接
-func NewDatabase(cfg *config.DatabaseConfig, log *utils.Logger) (*Database, error) {
+func NewDatabase(cfg *config.DatabaseConfig, log *logger.Logger) (*Database, error) {
 	// 构建MySQL DSN
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		cfg.User,
@@ -31,19 +30,11 @@ func NewDatabase(cfg *config.DatabaseConfig, log *utils.Logger) (*Database, erro
 	)
 
 	// 配置GORM日志级别
-	var gormLogLevel logger.LogLevel
-	switch log.Level.String() {
-	case "debug":
-		gormLogLevel = logger.Info
-	case "info":
-		gormLogLevel = logger.Warn
-	default:
-		gormLogLevel = logger.Error
-	}
+	var gormLogLevel gormlogger.LogLevel = gormlogger.Error // 默认错误级别
 
 	// 连接数据库
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(gormLogLevel),
+		Logger: gormlogger.Default.LogMode(gormLogLevel),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)

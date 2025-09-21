@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	logger "stock/internal/logger"
 )
 
 // ConcurrentExecutor 并发执行器，支持限制最大并发量
@@ -13,7 +15,7 @@ type ConcurrentExecutor struct {
 	maxConcurrency int
 	semaphore      chan struct{}
 	wg             sync.WaitGroup
-	logger         *Logger
+	logger         *logger.Logger
 	timeout        time.Duration
 }
 
@@ -67,7 +69,7 @@ type ExecutionStats struct {
 }
 
 // NewConcurrentExecutor 创建并发执行器
-func NewConcurrentExecutor(maxConcurrency int, logger *Logger, timeout time.Duration) *ConcurrentExecutor {
+func NewConcurrentExecutor(maxConcurrency int, timeout time.Duration) *ConcurrentExecutor {
 	if maxConcurrency <= 0 {
 		maxConcurrency = runtime.NumCPU()
 	}
@@ -79,7 +81,7 @@ func NewConcurrentExecutor(maxConcurrency int, logger *Logger, timeout time.Dura
 	return &ConcurrentExecutor{
 		maxConcurrency: maxConcurrency,
 		semaphore:      make(chan struct{}, maxConcurrency),
-		logger:         logger,
+		logger:         logger.GetGlobalLogger(),
 		timeout:        timeout,
 	}
 }
@@ -252,12 +254,12 @@ type WorkerPool struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
-	logger     *Logger
+	logger     *logger.Logger
 	timeout    time.Duration
 }
 
 // NewWorkerPool 创建工作池
-func NewWorkerPool(workers int, queueSize int, logger *Logger, timeout time.Duration) *WorkerPool {
+func NewWorkerPool(workers int, queueSize int, log *logger.Logger, timeout time.Duration) *WorkerPool {
 	if workers <= 0 {
 		workers = runtime.NumCPU()
 	}
@@ -278,7 +280,7 @@ func NewWorkerPool(workers int, queueSize int, logger *Logger, timeout time.Dura
 		resultChan: make(chan *TaskResult, queueSize),
 		ctx:        ctx,
 		cancel:     cancel,
-		logger:     logger,
+		logger:     log,
 		timeout:    timeout,
 	}
 
@@ -288,7 +290,7 @@ func NewWorkerPool(workers int, queueSize int, logger *Logger, timeout time.Dura
 		go wp.worker(i)
 	}
 
-	logger.Infof("工作池已启动: %d 个工作协程, 队列大小: %d", workers, queueSize)
+	log.Infof("工作池已启动: %d 个工作协程, 队列大小: %d", workers, queueSize)
 	return wp
 }
 

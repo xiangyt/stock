@@ -2,20 +2,19 @@ package service
 
 import (
 	"fmt"
+	"stock/internal/logger"
 	"sync"
 	"time"
 
+	"gorm.io/gorm"
 	"stock/internal/model"
 	"stock/internal/repository"
-	"stock/internal/utils"
-
-	"gorm.io/gorm"
 )
 
 // KLinePersistenceService K线数据持久化服务
 type KLinePersistenceService struct {
 	db            *gorm.DB
-	logger        *utils.Logger
+	logger        *logger.Logger
 	dailyDataRepo *repository.DailyDataRepository
 	weeklyRepo    *repository.WeeklyDataRepository
 	monthlyRepo   *repository.MonthlyDataRepository
@@ -28,7 +27,7 @@ var (
 )
 
 // GetKLinePersistenceService 获取K线数据持久化服务单例
-func GetKLinePersistenceService(db *gorm.DB, logger *utils.Logger) *KLinePersistenceService {
+func GetKLinePersistenceService(db *gorm.DB, logger *logger.Logger) *KLinePersistenceService {
 	klinePersistenceServiceOnce.Do(func() {
 		klinePersistenceServiceInstance = &KLinePersistenceService{
 			db:            db,
@@ -43,7 +42,7 @@ func GetKLinePersistenceService(db *gorm.DB, logger *utils.Logger) *KLinePersist
 }
 
 // NewKLinePersistenceService 创建K线数据持久化服务 (保持向后兼容)
-func NewKLinePersistenceService(db *gorm.DB, logger *utils.Logger) *KLinePersistenceService {
+func NewKLinePersistenceService(db *gorm.DB, logger *logger.Logger) *KLinePersistenceService {
 	return GetKLinePersistenceService(db, logger)
 }
 

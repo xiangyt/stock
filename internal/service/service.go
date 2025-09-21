@@ -1,9 +1,10 @@
 package service
 
 import (
-	"stock/internal/config"
-	"stock/internal/utils"
 	"sync"
+
+	"stock/internal/config"
+	"stock/internal/logger"
 )
 
 // Services 服务集合
@@ -19,7 +20,7 @@ type Services struct {
 }
 
 // NewServices 创建服务集合 (使用单例模式)
-func NewServices(cfg *config.Config, logger *utils.Logger) (*Services, error) {
+func NewServices(cfg *config.Config, logger *logger.Logger) (*Services, error) {
 	// 初始化数据库服务 (使用单例)
 	dbService := GetDatabaseService(cfg, logger)
 
@@ -50,7 +51,7 @@ func NewServices(cfg *config.Config, logger *utils.Logger) (*Services, error) {
 }
 
 // InitServicesWithDB 使用数据库连接初始化服务
-func (s *Services) InitServicesWithDB(db interface{}, logger *utils.Logger) error {
+func (s *Services) InitServicesWithDB(db interface{}, logger *logger.Logger) error {
 	// 这里暂时返回nil，具体实现需要根据实际的数据库和repository结构来完成
 	logger.Info("Services initialized with database connection")
 	return nil
@@ -59,7 +60,7 @@ func (s *Services) InitServicesWithDB(db interface{}, logger *utils.Logger) erro
 // DatabaseService 数据库服务
 type DatabaseService struct {
 	config *config.Config
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 var (
@@ -68,7 +69,7 @@ var (
 )
 
 // GetDatabaseService 获取数据库服务单例
-func GetDatabaseService(cfg *config.Config, logger *utils.Logger) *DatabaseService {
+func GetDatabaseService(cfg *config.Config, logger *logger.Logger) *DatabaseService {
 	databaseServiceOnce.Do(func() {
 		databaseServiceInstance = &DatabaseService{
 			config: cfg,
@@ -79,7 +80,7 @@ func GetDatabaseService(cfg *config.Config, logger *utils.Logger) *DatabaseServi
 }
 
 // NewDatabaseService 创建数据库服务 (保持向后兼容)
-func NewDatabaseService(cfg *config.Config, logger *utils.Logger) *DatabaseService {
+func NewDatabaseService(cfg *config.Config, logger *logger.Logger) *DatabaseService {
 	return GetDatabaseService(cfg, logger)
 }
 
@@ -100,7 +101,7 @@ func (s *DatabaseService) Migrate() error {
 // DataCollectorService 数据采集服务
 type DataCollectorService struct {
 	cfg    *config.Config
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 var (
@@ -109,7 +110,7 @@ var (
 )
 
 // GetDataCollectorService 获取数据采集服务单例
-func GetDataCollectorService(cfg *config.Config, logger *utils.Logger) *DataCollectorService {
+func GetDataCollectorService(cfg *config.Config, logger *logger.Logger) *DataCollectorService {
 	dataCollectorServiceOnce.Do(func() {
 		dataCollectorServiceInstance = &DataCollectorService{
 			cfg:    cfg,
@@ -120,7 +121,7 @@ func GetDataCollectorService(cfg *config.Config, logger *utils.Logger) *DataColl
 }
 
 // NewDataCollectorService 创建数据采集服务 (保持向后兼容)
-func NewDataCollectorService(cfg *config.Config, logger *utils.Logger) *DataCollectorService {
+func NewDataCollectorService(cfg *config.Config, logger *logger.Logger) *DataCollectorService {
 	return GetDataCollectorService(cfg, logger)
 }
 
@@ -155,7 +156,7 @@ func (s *DataCollectorService) UpdateRealtimeData() error {
 // TechnicalAnalyzerService 技术分析服务
 type TechnicalAnalyzerService struct {
 	cfg    *config.Config
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 var (
@@ -164,7 +165,7 @@ var (
 )
 
 // GetTechnicalAnalyzerService 获取技术分析服务单例
-func GetTechnicalAnalyzerService(cfg *config.Config, logger *utils.Logger) *TechnicalAnalyzerService {
+func GetTechnicalAnalyzerService(cfg *config.Config, logger *logger.Logger) *TechnicalAnalyzerService {
 	technicalAnalyzerServiceOnce.Do(func() {
 		technicalAnalyzerServiceInstance = &TechnicalAnalyzerService{
 			cfg:    cfg,
@@ -175,7 +176,7 @@ func GetTechnicalAnalyzerService(cfg *config.Config, logger *utils.Logger) *Tech
 }
 
 // NewTechnicalAnalyzerService 创建技术分析服务 (保持向后兼容)
-func NewTechnicalAnalyzerService(cfg *config.Config, logger *utils.Logger) *TechnicalAnalyzerService {
+func NewTechnicalAnalyzerService(cfg *config.Config, logger *logger.Logger) *TechnicalAnalyzerService {
 	return GetTechnicalAnalyzerService(cfg, logger)
 }
 
@@ -189,7 +190,7 @@ func (s *TechnicalAnalyzerService) CalculateAllIndicators() error {
 // StrategyEngineService 策略引擎服务
 type StrategyEngineService struct {
 	cfg    *config.Config
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 var (
@@ -198,7 +199,7 @@ var (
 )
 
 // GetStrategyEngineService 获取策略引擎服务单例
-func GetStrategyEngineService(cfg *config.Config, logger *utils.Logger) *StrategyEngineService {
+func GetStrategyEngineService(cfg *config.Config, logger *logger.Logger) *StrategyEngineService {
 	strategyEngineServiceOnce.Do(func() {
 		strategyEngineServiceInstance = &StrategyEngineService{
 			cfg:    cfg,
@@ -209,7 +210,7 @@ func GetStrategyEngineService(cfg *config.Config, logger *utils.Logger) *Strateg
 }
 
 // NewStrategyEngineService 创建策略引擎服务 (保持向后兼容)
-func NewStrategyEngineService(cfg *config.Config, logger *utils.Logger) *StrategyEngineService {
+func NewStrategyEngineService(cfg *config.Config, logger *logger.Logger) *StrategyEngineService {
 	return GetStrategyEngineService(cfg, logger)
 }
 
@@ -252,7 +253,7 @@ func (s *StrategyEngineService) ExecuteStrategy(strategy string, limit int) ([]S
 // BacktestEngineService 回测引擎服务
 type BacktestEngineService struct {
 	cfg    *config.Config
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 var (
@@ -261,7 +262,7 @@ var (
 )
 
 // GetBacktestEngineService 获取回测引擎服务单例
-func GetBacktestEngineService(cfg *config.Config, logger *utils.Logger) *BacktestEngineService {
+func GetBacktestEngineService(cfg *config.Config, logger *logger.Logger) *BacktestEngineService {
 	backtestEngineServiceOnce.Do(func() {
 		backtestEngineServiceInstance = &BacktestEngineService{
 			cfg:    cfg,
@@ -272,6 +273,6 @@ func GetBacktestEngineService(cfg *config.Config, logger *utils.Logger) *Backtes
 }
 
 // NewBacktestEngineService 创建回测引擎服务 (保持向后兼容)
-func NewBacktestEngineService(cfg *config.Config, logger *utils.Logger) *BacktestEngineService {
+func NewBacktestEngineService(cfg *config.Config, logger *logger.Logger) *BacktestEngineService {
 	return GetBacktestEngineService(cfg, logger)
 }

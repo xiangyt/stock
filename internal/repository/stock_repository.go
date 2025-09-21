@@ -1,8 +1,8 @@
 package repository
 
 import (
+	"stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -11,11 +11,11 @@ import (
 // StockRepository 股票数据仓库
 type StockRepository struct {
 	db     *gorm.DB
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 // NewStockRepository 创建股票仓库
-func NewStockRepository(db *gorm.DB, logger *utils.Logger) *StockRepository {
+func NewStockRepository(db *gorm.DB, logger *logger.Logger) *StockRepository {
 	return &StockRepository{
 		db:     db,
 		logger: logger,

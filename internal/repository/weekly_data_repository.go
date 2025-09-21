@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
+	"stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
 
 	"gorm.io/gorm"
 )
@@ -13,11 +13,11 @@ import (
 // WeeklyDataRepository 周K线数据仓库
 type WeeklyDataRepository struct {
 	db     *gorm.DB
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 // NewWeeklyDataRepository 创建周K线数据仓库
-func NewWeeklyDataRepository(db *gorm.DB, logger *utils.Logger) *WeeklyDataRepository {
+func NewWeeklyDataRepository(db *gorm.DB, logger *logger.Logger) *WeeklyDataRepository {
 	return &WeeklyDataRepository{
 		db:     db,
 		logger: logger,

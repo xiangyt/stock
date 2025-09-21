@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"stock/internal/logger"
 	"sync"
 	"time"
 
 	"stock/internal/collector"
 	"stock/internal/model"
 	"stock/internal/repository"
-	"stock/internal/utils"
 )
 
 // PerformanceService 业绩报表服务
@@ -17,7 +17,7 @@ type PerformanceService struct {
 	repo      *repository.PerformanceRepository
 	stockRepo *repository.StockRepository
 	collector collector.DataCollector
-	logger    *utils.Logger
+	logger    *logger.Logger
 }
 
 var (
@@ -30,7 +30,7 @@ func GetPerformanceService(
 	repo *repository.PerformanceRepository,
 	stockRepo *repository.StockRepository,
 	collector collector.DataCollector,
-	logger *utils.Logger,
+	logger *logger.Logger,
 ) *PerformanceService {
 	performanceServiceOnce.Do(func() {
 		performanceServiceInstance = &PerformanceService{
@@ -48,7 +48,7 @@ func NewPerformanceService(
 	repo *repository.PerformanceRepository,
 	stockRepo *repository.StockRepository,
 	collector collector.DataCollector,
-	logger *utils.Logger,
+	logger *logger.Logger,
 ) *PerformanceService {
 	return GetPerformanceService(repo, stockRepo, collector, logger)
 }

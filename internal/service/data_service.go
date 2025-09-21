@@ -6,18 +6,17 @@ import (
 	"sync"
 	"time"
 
+	"gorm.io/gorm"
 	"stock/internal/collector"
+	"stock/internal/logger"
 	"stock/internal/model"
 	"stock/internal/repository"
-	"stock/internal/utils"
-
-	"gorm.io/gorm"
 )
 
 // DataService 数据服务
 type DataService struct {
 	db               *gorm.DB
-	logger           *utils.Logger
+	logger           *logger.Logger
 	stockRepo        *repository.StockRepository
 	dailyDataRepo    *repository.DailyDataRepository
 	weeklyDataRepo   *repository.WeeklyDataRepository
@@ -32,7 +31,7 @@ var (
 )
 
 // GetDataService 获取数据服务单例
-func GetDataService(db *gorm.DB, logger *utils.Logger) *DataService {
+func GetDataService(db *gorm.DB, logger *logger.Logger) *DataService {
 	dataServiceOnce.Do(func() {
 		dataServiceInstance = &DataService{
 			db:               db,
@@ -49,7 +48,7 @@ func GetDataService(db *gorm.DB, logger *utils.Logger) *DataService {
 }
 
 // NewDataService 创建数据服务 (保持向后兼容)
-func NewDataService(db *gorm.DB, logger *utils.Logger) *DataService {
+func NewDataService(db *gorm.DB, logger *logger.Logger) *DataService {
 	return GetDataService(db, logger)
 }
 

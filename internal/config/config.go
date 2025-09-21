@@ -12,7 +12,7 @@ type Config struct {
 	Server    ServerConfig    `mapstructure:"server"`
 	Database  DatabaseConfig  `mapstructure:"database"`
 	Redis     RedisConfig     `mapstructure:"redis"`
-	Log       LogConfig       `mapstructure:"log"`
+	Log       LogConfig       `mapstructure:"logger"`
 	JWT       JWTConfig       `mapstructure:"jwt"`
 	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
 	Metrics   MetricsConfig   `mapstructure:"metrics"`
@@ -183,13 +183,13 @@ func setDefaults() {
 	viper.SetDefault("redis.min_idle_conns", 5)
 
 	// Log defaults
-	viper.SetDefault("log.level", "info")
-	viper.SetDefault("log.format", "json")
-	viper.SetDefault("log.file", "logs/app.log")
-	viper.SetDefault("log.max_size", 100)
-	viper.SetDefault("log.max_backups", 7)
-	viper.SetDefault("log.max_age", 30)
-	viper.SetDefault("log.compress", true)
+	viper.SetDefault("logger.level", "info")
+	viper.SetDefault("logger.format", "json")
+	viper.SetDefault("logger.file", "logs/app.logger")
+	viper.SetDefault("logger.max_size", 100)
+	viper.SetDefault("logger.max_backups", 7)
+	viper.SetDefault("logger.max_age", 30)
+	viper.SetDefault("logger.compress", true)
 
 	// JWT defaults
 	viper.SetDefault("jwt.secret", "your_jwt_secret_here")
