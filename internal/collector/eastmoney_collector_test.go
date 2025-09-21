@@ -18,7 +18,7 @@ func TestEastMoneyCollector_Pagination(t *testing.T) {
 	logrusLogger.SetLevel(logrus.InfoLevel)
 	logger := &utils.Logger{Logger: logrusLogger}
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 
 	// 测试分页获取
 	page := 1
@@ -76,7 +76,7 @@ func TestEastMoneyCollector_GetDailyKLine_001208(t *testing.T) {
 	logrusLogger.SetLevel(logrus.InfoLevel)
 	logger := &utils.Logger{Logger: logrusLogger}
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 
 	// 测试股票代码 001208.SZ
 	stockCode := "001208.SZ"
@@ -155,7 +155,7 @@ func TestEastMoneyCollector_GetRecentDailyData_001208(t *testing.T) {
 	logrusLogger.SetLevel(logrus.InfoLevel)
 	logger := &utils.Logger{Logger: logrusLogger}
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 
 	// 测试股票代码 001208.SZ
 	stockCode := "001208.SZ"
@@ -270,7 +270,7 @@ func TestEastMoneyCollector_GetPerformanceReports(t *testing.T) {
 	logrusLogger.SetLevel(logrus.InfoLevel)
 	logger := &utils.Logger{Logger: logrusLogger}
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 
 	// 测试股票代码
 	stockCode := "001208.SZ"
@@ -361,7 +361,7 @@ func TestGetStockDetail_000418(t *testing.T) {
 	logrusLogger.SetLevel(logrus.InfoLevel)
 	logger := &utils.Logger{Logger: logrusLogger}
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 
 	// 测试股票代码 000418 (小天鹅A)
 	tsCode := "000418.SZ"
@@ -447,7 +447,7 @@ func TestEastMoneyCollector_GetPerformanceReports_InvalidCode(t *testing.T) {
 	logrusLogger.SetLevel(logrus.InfoLevel)
 	logger := &utils.Logger{Logger: logrusLogger}
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 
 	// 测试无效的股票代码格式
 	invalidCodes := []string{
@@ -478,7 +478,7 @@ func TestEastMoneyCollector_GetPerformanceReports_Multiple(t *testing.T) {
 	logrusLogger.SetLevel(logrus.InfoLevel)
 	logger := &utils.Logger{Logger: logrusLogger}
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 
 	// 测试多个股票代码
 	testStocks := []string{
@@ -522,7 +522,7 @@ func TestEastMoneyCollector_GetLatestPerformanceReport(t *testing.T) {
 	logrusLogger.SetLevel(logrus.InfoLevel)
 	logger := &utils.Logger{Logger: logrusLogger}
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 
 	// 测试股票代码 000001.SZ
 	stockCode := "000001.SZ"

@@ -4,14 +4,13 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"stock/internal/api"
 	"stock/internal/collector"
 	"stock/internal/config"
 	"stock/internal/database"
+	"stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -22,7 +21,7 @@ func main() {
 	}
 
 	// 初始化日志
-	utilsLogger := utils.NewLogger(cfg.Log)
+	utilsLogger := logger.NewLogger(cfg.Log)
 
 	// 获取内部的logrus.Logger用于API handler
 	logrusLogger := utilsLogger.Logger
@@ -41,7 +40,7 @@ func main() {
 	}
 
 	// 创建数据采集器
-	eastMoneyCollector := collector.NewEastMoneyCollector(utilsLogger)
+	eastMoneyCollector := collector.GetCollectorFactory(logger.GetGlobalLogger()).GetEastMoneyCollector()
 	if err := eastMoneyCollector.Connect(); err != nil {
 		log.Fatalf("Failed to connect to data source: %v", err)
 	}

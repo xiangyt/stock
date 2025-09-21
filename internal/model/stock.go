@@ -115,6 +115,25 @@ func (MonthlyData) TableName() string {
 	return "monthly_data"
 }
 
+// QuarterlyData 季K线数据模型 - A股季K线行情数据
+type QuarterlyData struct {
+	TsCode    string  `json:"ts_code" gorm:"size:20;not null;primaryKey"` // 股票代码，如：000001.SZ，联合主键1
+	TradeDate int     `json:"trade_date" gorm:"not null;primaryKey"`      // 季结束交易日期，YYYYMMDD格式，如：20250930，联合主键2
+	Open      float64 `json:"open" gorm:"type:decimal(10,3)"`             // 季开盘价，单位：元
+	High      float64 `json:"high" gorm:"type:decimal(10,3)"`             // 季最高价，单位：元
+	Low       float64 `json:"low" gorm:"type:decimal(10,3)"`              // 季最低价，单位：元
+	Close     float64 `json:"close" gorm:"type:decimal(10,3)"`            // 季收盘价，单位：元
+	Volume    int64   `json:"volume"`                                     // 季成交量，单位：股
+	Amount    float64 `json:"amount" gorm:"type:decimal(20,2)"`           // 季成交额，单位：元
+	CreatedAt int64   `json:"created_at"`                                 // 记录创建时间戳
+	UpdatedAt int64   `json:"updated_at"`                                 // 记录更新时间戳
+}
+
+// TableName 指定表名
+func (QuarterlyData) TableName() string {
+	return "quarterly_data"
+}
+
 // YearlyData 年K线数据模型 - A股年K线行情数据
 type YearlyData struct {
 	TsCode    string  `json:"ts_code" gorm:"size:20;not null;primaryKey"` // 股票代码，如：000001.SZ，联合主键1

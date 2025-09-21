@@ -6,19 +6,19 @@ import (
 	"time"
 
 	"stock/internal/config"
-	"stock/internal/utils"
+	"stock/internal/logger"
 )
 
 // TestEastMoneyCollector_RateLimit 测试限流功能
 func TestEastMoneyCollector_RateLimit(t *testing.T) {
 	// 创建测试用的 logger
-	logger := utils.NewLogger(config.LogConfig{
+	logger := logger.NewLogger(config.LogConfig{
 		Level:  "debug",
 		Format: "text",
 	})
 
 	// 创建东财采集器，设置较低的限流速率便于测试
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 	collector.SetRateLimit(2) // 每秒2个请求
 
 	// 测试连续请求的时间间隔
@@ -48,12 +48,12 @@ func TestEastMoneyCollector_RateLimit(t *testing.T) {
 
 // TestEastMoneyCollector_SetRateLimit 测试动态设置限流速率
 func TestEastMoneyCollector_SetRateLimit(t *testing.T) {
-	logger := utils.NewLogger(config.LogConfig{
+	logger := logger.NewLogger(config.LogConfig{
 		Level:  "debug",
 		Format: "text",
 	})
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 
 	// 测试初始限流速率
 	initialRate := collector.GetRateLimit()
@@ -83,12 +83,12 @@ func TestEastMoneyCollector_SetRateLimit(t *testing.T) {
 
 // TestEastMoneyCollector_GetRateLimitStats 测试获取限流统计信息
 func TestEastMoneyCollector_GetRateLimitStats(t *testing.T) {
-	logger := utils.NewLogger(config.LogConfig{
+	logger := logger.NewLogger(config.LogConfig{
 		Level:  "debug",
 		Format: "text",
 	})
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 	collector.SetRateLimit(5)
 
 	stats := collector.GetRateLimitStats()
@@ -119,12 +119,12 @@ func TestEastMoneyCollector_GetRateLimitStats(t *testing.T) {
 
 // BenchmarkEastMoneyCollector_RateLimit 基准测试限流性能
 func BenchmarkEastMoneyCollector_RateLimit(b *testing.B) {
-	logger := utils.NewLogger(config.LogConfig{
+	logger := logger.NewLogger(config.LogConfig{
 		Level:  "error", // 减少日志输出
 		Format: "text",
 	})
 
-	collector := NewEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger)
 	collector.SetRateLimit(100) // 设置较高的限流速率
 
 	b.ResetTimer()

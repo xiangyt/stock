@@ -5,14 +5,13 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gin-gonic/gin"
 	"stock/internal/api"
 	"stock/internal/collector"
 	"stock/internal/config"
 	"stock/internal/database"
+	"stock/internal/logger"
 	"stock/internal/model"
-	"stock/internal/utils"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -23,13 +22,13 @@ func main() {
 	}
 
 	// 初始化日志
-	utilsLogger := utils.NewLogger(cfg.Log)
+	logger2 := logger.NewLogger(cfg.Log)
 
 	// 获取内部的logrus.Logger用于API handler
-	logrusLogger := utilsLogger.Logger
+	logrusLogger := logger2.Logger
 
 	// 初始化数据库连接
-	dbManager, err := database.NewDatabase(&cfg.Database, utilsLogger)
+	dbManager, err := database.NewDatabase(&cfg.Database, logger2)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -42,13 +41,13 @@ func main() {
 	}
 
 	// 创建数据采集器
-	eastMoneyCollector := collector.NewEastMoneyCollector(utilsLogger)
+	eastMoneyCollector := collector.GetCollectorFactory(logger.GetGlobalLogger()).GetEastMoneyCollector()
 	if err := eastMoneyCollector.Connect(); err != nil {
 		log.Fatalf("Failed to connect to data source: %v", err)
 	}
 
 	// 创建采集器管理器
-	collectorManager := collector.NewCollectorManager(utilsLogger)
+	collectorManager := collector.NewCollectorManager(logger2)
 	collectorManager.RegisterCollector("eastmoney", eastMoneyCollector)
 
 	// 创建API处理器（传入数据库连接）
@@ -110,7 +109,7 @@ func main() {
 		port = "8080"
 	}
 
-	utilsLogger.Infof("Starting API server on :%s", port)
+	logger.Infof("Starting API server on :%s", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

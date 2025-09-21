@@ -22,15 +22,16 @@ type KLineType = string
 
 // K线类型常量
 const (
-	KLineTypeDaily   KLineType = "101" // 日K线
-	KLineTypeWeekly  KLineType = "102" // 周K线
-	KLineTypeMonthly KLineType = "103" // 月K线
-	KLineTypeYearly  KLineType = "104" // 年K线
+	KLineTypeDaily     KLineType = "101" // 日K线
+	KLineTypeWeekly    KLineType = "102" // 周K线
+	KLineTypeMonthly   KLineType = "103" // 月K线
+	KLineTypeQuarterly KLineType = "104" // 季K线
+	KLineTypeYearly    KLineType = "106" // 年K线
 )
 
 // KLineData 通用K线数据接口
 type KLineData interface {
-	model.WeeklyData | model.MonthlyData | model.YearlyData
+	model.DailyData | model.WeeklyData | model.MonthlyData | model.QuarterlyData | model.YearlyData
 }
 
 // KLineResponse 东方财富K线API响应结构
@@ -54,18 +55,18 @@ type EastMoneyCollector struct {
 	limiter *rate.Limiter // 限流器
 }
 
-// NewEastMoneyCollector 创建东方财富采集器
-func NewEastMoneyCollector(logger *logger.Logger) *EastMoneyCollector {
+// newEastMoneyCollector 创建东方财富采集器
+func newEastMoneyCollector(logger *logger.Logger) *EastMoneyCollector {
 	config := CollectorConfig{
 		Name:      "eastmoney",
 		BaseURL:   "https://push2.eastmoney.com",
 		Timeout:   30 * time.Second,
-		RateLimit: 10, // 每秒10个请求
+		RateLimit: 3, // 每秒10个请求
 		Headers: map[string]string{
-			"Accept":             "*/*",
-			"Accept-Language":    "zh-CN,zh;q=0.9,en;q=0.8",
-			"Connection":         "keep-alive",
-			"Referer":            "https://data.eastmoney.com/",
+			"Accept":          "*/*",
+			"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+			"Connection":      "keep-alive",
+			//"Referer":            "https://data.eastmoney.com/",// 动态设置
 			"User-Agent":         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
 			"sec-ch-ua":          `"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"`,
 			"sec-ch-ua-mobile":   "?0",
@@ -73,6 +74,8 @@ func NewEastMoneyCollector(logger *logger.Logger) *EastMoneyCollector {
 			"sec-fetch-dest":     "script",
 			"sec-fetch-mode":     "no-cors",
 			"sec-fetch-site":     "same-site",
+			"cache-control":      "no-cache",
+			"pargma":             "no-cache",
 			//"cookie":             "qgqp_b_id=70e1191db491f7e84374e18218beb159; st_nvi=t19Iuw0pv7cziS9NpDFvwac78; nid=00c18f59b20816388614a11f44a7a467; nid_create_time=1755334507172; gvi=SPp0K7jZ5OHSqiz2pigL09303; gvi_create_time=1755334507172; st_si=67468401804019; fullscreengg=1; fullscreengg2=1; websitepoptg_api_time=1758373501952; st_asi=delete; wsc_checkuser_ok=1; st_pvi=30544878065704; st_sp=2025-08-16%2016%3A55%3A06; st_inirUrl=https%3A%2F%2Fdata.eastmoney.com%2Fgphg%2F; st_sn=166; st_psi=20250921003620276-113300300813-8448178144",
 		},
 	}
@@ -96,32 +99,18 @@ func NewEastMoneyCollector(logger *logger.Logger) *EastMoneyCollector {
 
 // Connect 连接数据源
 func (e *EastMoneyCollector) Connect() error {
-	e.logger.Infof("Connecting to %s...", e.Config.Name)
-
-	// 测试连接
-	if err := e.testConnection(); err != nil {
-		e.logger.Errorf("Failed to connect to %s: %v", e.Config.Name, err)
-		return err
-	}
-
 	e.Connected = true
-	e.logger.Infof("Successfully connected to %s", e.Config.Name)
-	return nil
-}
-
-// testConnection 测试连接
-func (e *EastMoneyCollector) testConnection() error {
-	// 获取少量数据测试连接
+	//e.logger.Infof("Successfully connected to %s", e.Config.Name)
 	return nil
 }
 
 // makeRequest 发送HTTP请求（带限流）
-func (e *EastMoneyCollector) makeRequest(url string) (*http.Response, error) {
-	return e.makeRequestWithContext(context.Background(), url)
+func (e *EastMoneyCollector) makeRequest(url, refer string) (*http.Response, error) {
+	return e.makeRequestWithContext(context.Background(), url, refer)
 }
 
 // makeRequestWithContext 发送HTTP请求（带限流和上下文）
-func (e *EastMoneyCollector) makeRequestWithContext(ctx context.Context, url string) (*http.Response, error) {
+func (e *EastMoneyCollector) makeRequestWithContext(ctx context.Context, url, refer string) (*http.Response, error) {
 	// 应用限流
 	if err := e.limiter.Wait(ctx); err != nil {
 		return nil, fmt.Errorf("rate limit wait failed: %v", err)
@@ -136,6 +125,7 @@ func (e *EastMoneyCollector) makeRequestWithContext(ctx context.Context, url str
 	for key, value := range e.Config.Headers {
 		req.Header.Set(key, value)
 	}
+	req.Header.Set("Referer", refer)
 
 	e.logger.Debugf("Making rate-limited request: %s", url)
 
@@ -240,7 +230,7 @@ func (e *EastMoneyCollector) fetchStockListPage(page, pageSize int) (*EastMoneyS
 
 	requestURL := baseURL + "?" + params.Encode()
 
-	resp, err := e.makeRequest(requestURL)
+	resp, err := e.makeRequest(requestURL, "https://data.eastmoney.com/zjlx/detail.html")
 	if err != nil {
 		return nil, err
 	}
@@ -461,11 +451,13 @@ func (e *EastMoneyCollector) GetStockDetail(tsCode string) (*model.Stock, error)
 	params.Set("cb", fmt.Sprintf("jQuery112309283015113892927_%d", time.Now().UnixMilli()))
 
 	// 设置股票代码，东方财富格式：市场代码.股票代码
-	var secid string
+	var secid, refer string
 	if market == "SH" {
 		secid = fmt.Sprintf("1.%s", symbol)
+		refer = fmt.Sprintf("https://quote.eastmoney.com/sh%s.html", symbol)
 	} else if market == "SZ" {
 		secid = fmt.Sprintf("0.%s", symbol)
+		refer = fmt.Sprintf("https://quote.eastmoney.com/sz%s.html", symbol)
 	} else {
 		return nil, fmt.Errorf("unsupported market: %s", market)
 	}
@@ -476,7 +468,7 @@ func (e *EastMoneyCollector) GetStockDetail(tsCode string) (*model.Stock, error)
 
 	requestURL := baseURL + "?" + params.Encode()
 
-	resp, err := e.makeRequest(requestURL)
+	resp, err := e.makeRequest(requestURL, refer)
 	if err != nil {
 		return nil, err
 	}
@@ -698,7 +690,7 @@ func (e *EastMoneyCollector) GetPerformanceReports(tsCode string) ([]model.Perfo
 	requestURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
 
 	// 发送请求
-	resp, err := e.makePerformanceRequest(requestURL)
+	resp, err := e.makePerformanceRequest(requestURL, stockCode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch performance reports: %w", err)
 	}
@@ -777,7 +769,7 @@ func (e *EastMoneyCollector) GetLatestPerformanceReport(tsCode string) (*model.P
 }
 
 // makePerformanceRequest 发送业绩报表请求
-func (e *EastMoneyCollector) makePerformanceRequest(url string) (*http.Response, error) {
+func (e *EastMoneyCollector) makePerformanceRequest(url, stockCode string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -787,7 +779,7 @@ func (e *EastMoneyCollector) makePerformanceRequest(url string) (*http.Response,
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Referer", "https://data.eastmoney.com/bbsj/yjbb/")
+	req.Header.Set("Referer", "https://data.eastmoney.com/bbsj/yjbb/"+stockCode+".html")
 	req.Header.Set("Sec-Fetch-Dest", "script")
 	req.Header.Set("Sec-Fetch-Mode", "no-cors")
 	req.Header.Set("Sec-Fetch-Site", "same-site")
@@ -903,7 +895,7 @@ func (e *EastMoneyCollector) GetShareholderCounts(tsCode string) ([]model.Shareh
 	requestURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
 
 	// 发送请求
-	resp, err := e.makeRequest(requestURL)
+	resp, err := e.makeRequest(requestURL, fmt.Sprintf("https://data.eastmoney.com/gdhs/detail/%s.html", stockCode))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch shareholder counts: %w", err)
 	}
@@ -1085,7 +1077,7 @@ func (e *EastMoneyCollector) fetchKLineRawData(tsCode string, klineType KLineTyp
 	}
 
 	// 发送请求并解析响应
-	response, err := e.sendKLineRequest(requestURL)
+	response, err := e.sendKLineRequest(requestURL, "https://quote.eastmoney.com")
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -1140,8 +1132,8 @@ func (e *EastMoneyCollector) buildSecID(symbol, market string) string {
 }
 
 // sendKLineRequest 发送K线请求并解析响应
-func (e *EastMoneyCollector) sendKLineRequest(requestURL string) (*KLineResponse, error) {
-	resp, err := e.makeRequest(requestURL)
+func (e *EastMoneyCollector) sendKLineRequest(requestURL, refer string) (*KLineResponse, error) {
+	resp, err := e.makeRequest(requestURL, refer)
 	if err != nil {
 		return nil, err
 	}

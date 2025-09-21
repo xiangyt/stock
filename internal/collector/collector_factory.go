@@ -2,6 +2,7 @@ package collector
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"stock/internal/logger"
@@ -17,32 +18,64 @@ const (
 	CollectorTypeAKShare   CollectorType = "akshare"
 )
 
+// 单例实例存储
+var (
+	eastMoneyCollectorInstance *EastMoneyCollector
+	eastMoneyCollectorOnce     sync.Once
+
+	httpCollectorInstances = make(map[string]*HTTPCollector)
+	httpCollectorMutex     sync.RWMutex
+
+	tushareCollectorInstance *HTTPCollector
+	tushareCollectorOnce     sync.Once
+
+	akshareCollectorInstance *HTTPCollector
+	akshareCollectorOnce     sync.Once
+
+	factoryInstance *CollectorFactory
+	factoryOnce     sync.Once
+)
+
 // CollectorFactory 采集器工厂
 type CollectorFactory struct {
 	logger *logger.Logger
 }
 
-// NewCollectorFactory 创建采集器工厂
-func NewCollectorFactory(logger *logger.Logger) *CollectorFactory {
-	return &CollectorFactory{
-		logger: logger,
-	}
+// GetCollectorFactory 获取采集器工厂单例
+func GetCollectorFactory(log *logger.Logger) *CollectorFactory {
+	factoryOnce.Do(func() {
+		factoryInstance = &CollectorFactory{
+			logger: log,
+		}
+	})
+	return factoryInstance
 }
 
-// CreateCollector 创建指定类型的采集器
-func (f *CollectorFactory) CreateCollector(collectorType CollectorType, config ...CollectorConfig) (DataCollector, error) {
-	switch collectorType {
-	case CollectorTypeEastMoney:
-		return NewEastMoneyCollector(f.logger), nil
+// GetEastMoneyCollector 获取东方财富采集器单例
+func (f *CollectorFactory) GetEastMoneyCollector() *EastMoneyCollector {
+	eastMoneyCollectorOnce.Do(func() {
+		eastMoneyCollectorInstance = newEastMoneyCollector(f.logger)
+	})
+	return eastMoneyCollectorInstance
+}
 
-	case CollectorTypeHTTP:
-		if len(config) == 0 {
-			return nil, fmt.Errorf("HTTP collector requires configuration")
-		}
-		return NewHTTPCollector(config[0], f.logger), nil
+// GetHTTPCollector 获取HTTP采集器单例（根据配置名称区分）
+func (f *CollectorFactory) GetHTTPCollector(config CollectorConfig) *HTTPCollector {
+	httpCollectorMutex.Lock()
+	defer httpCollectorMutex.Unlock()
 
-	case CollectorTypeTushare:
-		// 创建Tushare采集器配置
+	if instance, exists := httpCollectorInstances[config.Name]; exists {
+		return instance
+	}
+
+	instance := NewHTTPCollector(config, f.logger)
+	httpCollectorInstances[config.Name] = instance
+	return instance
+}
+
+// GetTushareCollector 获取Tushare采集器单例
+func (f *CollectorFactory) GetTushareCollector(config ...CollectorConfig) *HTTPCollector {
+	tushareCollectorOnce.Do(func() {
 		cfg := CollectorConfig{
 			Name:      "tushare",
 			BaseURL:   "https://api.tushare.pro",
@@ -52,10 +85,14 @@ func (f *CollectorFactory) CreateCollector(collectorType CollectorType, config .
 		if len(config) > 0 {
 			cfg = config[0]
 		}
-		return NewHTTPCollector(cfg, f.logger), nil
+		tushareCollectorInstance = NewHTTPCollector(cfg, f.logger)
+	})
+	return tushareCollectorInstance
+}
 
-	case CollectorTypeAKShare:
-		// 创建AKShare采集器配置
+// GetAKShareCollector 获取AKShare采集器单例
+func (f *CollectorFactory) GetAKShareCollector(config ...CollectorConfig) *HTTPCollector {
+	akshareCollectorOnce.Do(func() {
 		cfg := CollectorConfig{
 			Name:      "akshare",
 			BaseURL:   "https://api.akshare.xyz",
@@ -65,30 +102,96 @@ func (f *CollectorFactory) CreateCollector(collectorType CollectorType, config .
 		if len(config) > 0 {
 			cfg = config[0]
 		}
-		return NewHTTPCollector(cfg, f.logger), nil
+		akshareCollectorInstance = NewHTTPCollector(cfg, f.logger)
+	})
+	return akshareCollectorInstance
+}
+
+// CreateCollector 创建指定类型的采集器（使用单例）
+func (f *CollectorFactory) CreateCollector(collectorType CollectorType, config ...CollectorConfig) (DataCollector, error) {
+	switch collectorType {
+	case CollectorTypeEastMoney:
+		return f.GetEastMoneyCollector(), nil
+
+	case CollectorTypeHTTP:
+		if len(config) == 0 {
+			return nil, fmt.Errorf("HTTP collector requires configuration")
+		}
+		return f.GetHTTPCollector(config[0]), nil
+
+	case CollectorTypeTushare:
+		return f.GetTushareCollector(config...), nil
+
+	case CollectorTypeAKShare:
+		return f.GetAKShareCollector(config...), nil
 
 	default:
 		return nil, fmt.Errorf("unsupported collector type: %s", collectorType)
 	}
 }
 
-// CreateDefaultCollectors 创建默认的采集器集合
+// CreateDefaultCollectors 创建默认的采集器集合（使用单例）
 func (f *CollectorFactory) CreateDefaultCollectors() map[string]DataCollector {
 	collectors := make(map[string]DataCollector)
 
-	// 创建东方财富采集器
-	if eastMoney, err := f.CreateCollector(CollectorTypeEastMoney); err == nil {
-		collectors["eastmoney"] = eastMoney
-	} else {
-		f.logger.Errorf("Failed to create EastMoney collector: %v", err)
+	// 创建东方财富采集器（单例）
+	collectors["eastmoney"] = f.GetEastMoneyCollector()
+
+	// 创建Tushare采集器（单例）
+	collectors["tushare"] = f.GetTushareCollector()
+
+	// 创建AKShare采集器（单例）
+	collectors["akshare"] = f.GetAKShareCollector()
+
+	f.logger.Infof("Created %d default collectors using singleton pattern", len(collectors))
+	return collectors
+}
+
+// GetAllCollectors 获取所有已创建的采集器实例
+func (f *CollectorFactory) GetAllCollectors() map[string]DataCollector {
+	collectors := make(map[string]DataCollector)
+
+	// 东方财富采集器
+	if eastMoneyCollectorInstance != nil {
+		collectors["eastmoney"] = eastMoneyCollectorInstance
 	}
 
-	// 可以添加更多默认采集器
-	// if tushare, err := f.CreateCollector(CollectorTypeTushare); err == nil {
-	//     collectors["tushare"] = tushare
-	// }
+	// Tushare采集器
+	if tushareCollectorInstance != nil {
+		collectors["tushare"] = tushareCollectorInstance
+	}
+
+	// AKShare采集器
+	if akshareCollectorInstance != nil {
+		collectors["akshare"] = akshareCollectorInstance
+	}
+
+	// HTTP采集器实例
+	httpCollectorMutex.RLock()
+	for name, instance := range httpCollectorInstances {
+		collectors[name] = instance
+	}
+	httpCollectorMutex.RUnlock()
 
 	return collectors
+}
+
+// ResetCollectors 重置所有采集器实例（主要用于测试）
+func (f *CollectorFactory) ResetCollectors() {
+	eastMoneyCollectorOnce = sync.Once{}
+	eastMoneyCollectorInstance = nil
+
+	tushareCollectorOnce = sync.Once{}
+	tushareCollectorInstance = nil
+
+	akshareCollectorOnce = sync.Once{}
+	akshareCollectorInstance = nil
+
+	httpCollectorMutex.Lock()
+	httpCollectorInstances = make(map[string]*HTTPCollector)
+	httpCollectorMutex.Unlock()
+
+	f.logger.Info("All collector instances have been reset")
 }
 
 // GetSupportedCollectors 获取支持的采集器类型列表

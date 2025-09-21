@@ -41,7 +41,7 @@ func GetDataService(db *gorm.DB, logger *logger.Logger) *DataService {
 			weeklyDataRepo:   repository.NewWeeklyDataRepository(db, logger),
 			monthlyDataRepo:  repository.NewMonthlyDataRepository(db, logger),
 			yearlyDataRepo:   repository.NewYearlyDataRepository(db, logger),
-			collectorFactory: collector.NewCollectorFactory(logger),
+			collectorFactory: collector.GetCollectorFactory(logger),
 		}
 	})
 	return dataServiceInstance
