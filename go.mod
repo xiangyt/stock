@@ -1,6 +1,8 @@
 module stock
 
-go 1.21
+go 1.24.0
+
+toolchain go1.24.7
 
 require (
 	github.com/gin-gonic/gin v1.9.1
@@ -53,6 +55,7 @@ require (
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
+	golang.org/x/time v0.13.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

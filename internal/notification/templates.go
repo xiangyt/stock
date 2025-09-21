@@ -2,6 +2,7 @@ package notification
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -140,7 +141,7 @@ func (t *PerformanceReportTemplate) generateMarkdownContent() string {
 	var content strings.Builder
 
 	content.WriteString(fmt.Sprintf("## 📊 业绩报表 - %s(%s)\n\n", t.Stock.Name, t.Stock.TsCode))
-	content.WriteString(fmt.Sprintf("**报告期**: %s\n\n", t.Report.ReportDate.Format("2006-01-02")))
+	content.WriteString(fmt.Sprintf("**报告期**: %s\n\n", strconv.Itoa(t.Report.ReportDate)))
 
 	content.WriteString("### 每股指标\n")
 	content.WriteString(fmt.Sprintf("- **每股收益(EPS)**: %.4f元\n", t.Report.EPS))

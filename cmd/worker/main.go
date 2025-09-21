@@ -215,22 +215,17 @@ func collectAndPersistDailyKLineData(services *service.Services, logger *utils.L
 
 	// 统计结果
 	successCount := 0
-	inactiveCount := 0
 
 	for _, result := range results {
 		if result.Success {
 			successCount++
 		} else {
 			logger.Errorf("股票日K线采集失败: %v", result.Error)
-			// 检查是否为非活跃股票错误
-			if result.Error != nil && result.Error.Error() == "stock_inactive" {
-				inactiveCount++
-			}
 		}
 	}
 
-	logger.Infof("日K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 非活跃: %d, 总耗时: %v, 平均耗时: %v",
-		stats.TotalTasks, successCount, stats.FailedTasks, inactiveCount, stats.TotalDuration, stats.AverageDuration)
+	logger.Infof("日K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v, 平均耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.TotalDuration, stats.AverageDuration)
 
 	return nil
 }
@@ -255,16 +250,7 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock, logger 
 		if err != nil {
 			return fmt.Errorf("解析交易日期失败: %v", err)
 		}
-
-		// 检查最新数据是否超过一个月
-		oneMonthAgo := time.Now().AddDate(0, -1, 0)
-		if tradeDate.Before(oneMonthAgo) {
-			// 标记为非活跃股票
-			if err := markStockInactive(services, stock.TsCode, logger); err != nil {
-				logger.Errorf("标记股票 %s 为非活跃状态失败: %v", stock.TsCode, err)
-			}
-			return nil
-		}
+		startDate = tradeDate
 	}
 
 	// 实现真正的数据同步逻辑
@@ -279,6 +265,23 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock, logger 
 	}
 
 	logger.Debugf("股票 %s 日K线数据同步完成，共同步 %d 条记录", stock.TsCode, syncCount)
+
+	latestData, _ = services.DataService.GetLatestPrice(stock.TsCode)
+	if latestData != nil { // 日k一个月没更新，可能已经退市了
+		tradeDateStr := fmt.Sprintf("%d", latestData.TradeDate)
+		tradeDate, err := time.Parse("20060102", tradeDateStr)
+		if err != nil {
+			return fmt.Errorf("解析交易日期失败: %v", err)
+		}
+		// 检查最新数据是否超过一个月
+		oneMonthAgo := time.Now().AddDate(0, -1, 0)
+		if tradeDate.Before(oneMonthAgo) {
+			// 标记为非活跃股票
+			if err := markStockInactive(services, stock.TsCode, logger); err != nil {
+				logger.Errorf("标记股票 %s 为非活跃状态失败: %v", stock.TsCode, err)
+			}
+		}
+	}
 	return nil
 }
 

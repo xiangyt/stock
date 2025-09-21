@@ -63,14 +63,14 @@ func (r *DailyDataRepository) SaveDailyData(data []model.DailyData) error {
 
 	// 分别保存到对应的表
 	if len(shData) > 0 {
-		if err := r.db.CreateInBatches(shData, 1000).Error; err != nil {
+		if err := r.db.Table("daily_data_sh").CreateInBatches(shData, 1000).Error; err != nil {
 			return fmt.Errorf("failed to save SH daily data: %w", err)
 		}
 		r.logger.Infof("Saved %d SH daily data records", len(shData))
 	}
 
 	if len(szData) > 0 {
-		if err := r.db.CreateInBatches(szData, 1000).Error; err != nil {
+		if err := r.db.Table("daily_data_sz").CreateInBatches(szData, 1000).Error; err != nil {
 			return fmt.Errorf("failed to save SZ daily data: %w", err)
 		}
 		r.logger.Infof("Saved %d SZ daily data records", len(szData))
@@ -101,7 +101,7 @@ func (r *DailyDataRepository) UpsertDailyData(data []model.DailyData) error {
 	// 分别更新到对应的表
 	if len(shData) > 0 {
 		for _, item := range shData {
-			if err := r.db.Save(&item).Error; err != nil {
+			if err := r.db.Table("daily_data_sh").Save(&item).Error; err != nil {
 				return fmt.Errorf("failed to upsert SH daily data: %w", err)
 			}
 		}
@@ -110,7 +110,7 @@ func (r *DailyDataRepository) UpsertDailyData(data []model.DailyData) error {
 
 	if len(szData) > 0 {
 		for _, item := range szData {
-			if err := r.db.Save(&item).Error; err != nil {
+			if err := r.db.Table("daily_data_sz").Save(&item).Error; err != nil {
 				return fmt.Errorf("failed to upsert SZ daily data: %w", err)
 			}
 		}

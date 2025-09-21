@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,14 +14,18 @@ import (
 
 	"stock/internal/model"
 	"stock/internal/utils"
+
+	"golang.org/x/time/rate"
 )
+
+type KLineType = string
 
 // K线类型常量
 const (
-	KLineTypeDaily   = "101" // 日K线
-	KLineTypeWeekly  = "102" // 周K线
-	KLineTypeMonthly = "103" // 月K线
-	KLineTypeYearly  = "104" // 年K线
+	KLineTypeDaily   KLineType = "101" // 日K线
+	KLineTypeWeekly  KLineType = "102" // 周K线
+	KLineTypeMonthly KLineType = "103" // 月K线
+	KLineTypeYearly  KLineType = "104" // 年K线
 )
 
 // KLineData 通用K线数据接口
@@ -43,9 +48,10 @@ type KLineResponse struct {
 // EastMoneyCollector 东方财富数据采集器
 type EastMoneyCollector struct {
 	BaseCollector
-	client *http.Client
-	logger *utils.Logger
-	parser *KLineParser
+	client  *http.Client
+	logger  *utils.Logger
+	parser  *KLineParser
+	limiter *rate.Limiter // 限流器
 }
 
 // NewEastMoneyCollector 创建东方财富采集器
@@ -67,9 +73,12 @@ func NewEastMoneyCollector(logger *utils.Logger) *EastMoneyCollector {
 			"sec-fetch-dest":     "script",
 			"sec-fetch-mode":     "no-cors",
 			"sec-fetch-site":     "same-site",
-			"cookie":             "qgqp_b_id=70e1191db491f7e84374e18218beb159; st_nvi=t19Iuw0pv7cziS9NpDFvwac78; nid=00c18f59b20816388614a11f44a7a467; nid_create_time=1755334507172; gvi=SPp0K7jZ5OHSqiz2pigL09303; gvi_create_time=1755334507172; st_si=67468401804019; fullscreengg=1; fullscreengg2=1; websitepoptg_api_time=1758373501952; st_asi=delete; wsc_checkuser_ok=1; st_pvi=30544878065704; st_sp=2025-08-16%2016%3A55%3A06; st_inirUrl=https%3A%2F%2Fdata.eastmoney.com%2Fgphg%2F; st_sn=157; st_psi=20250920214243351-113300300813-8655130456",
+			//"cookie":             "qgqp_b_id=70e1191db491f7e84374e18218beb159; st_nvi=t19Iuw0pv7cziS9NpDFvwac78; nid=00c18f59b20816388614a11f44a7a467; nid_create_time=1755334507172; gvi=SPp0K7jZ5OHSqiz2pigL09303; gvi_create_time=1755334507172; st_si=67468401804019; fullscreengg=1; fullscreengg2=1; websitepoptg_api_time=1758373501952; st_asi=delete; wsc_checkuser_ok=1; st_pvi=30544878065704; st_sp=2025-08-16%2016%3A55%3A06; st_inirUrl=https%3A%2F%2Fdata.eastmoney.com%2Fgphg%2F; st_sn=166; st_psi=20250921003620276-113300300813-8448178144",
 		},
 	}
+
+	// 创建限流器，每秒允许 RateLimit 个请求，突发容量为 RateLimit*2
+	limiter := rate.NewLimiter(rate.Limit(config.RateLimit), config.RateLimit*2)
 
 	return &EastMoneyCollector{
 		BaseCollector: BaseCollector{
@@ -79,8 +88,9 @@ func NewEastMoneyCollector(logger *utils.Logger) *EastMoneyCollector {
 		client: &http.Client{
 			Timeout: config.Timeout,
 		},
-		logger: logger,
-		parser: NewKLineParser(),
+		logger:  logger,
+		parser:  NewKLineParser(),
+		limiter: limiter,
 	}
 }
 
@@ -105,9 +115,19 @@ func (e *EastMoneyCollector) testConnection() error {
 	return nil
 }
 
-// makeRequest 发送HTTP请求
+// makeRequest 发送HTTP请求（带限流）
 func (e *EastMoneyCollector) makeRequest(url string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", url, nil)
+	return e.makeRequestWithContext(context.Background(), url)
+}
+
+// makeRequestWithContext 发送HTTP请求（带限流和上下文）
+func (e *EastMoneyCollector) makeRequestWithContext(ctx context.Context, url string) (*http.Response, error) {
+	// 应用限流
+	if err := e.limiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +137,7 @@ func (e *EastMoneyCollector) makeRequest(url string) (*http.Response, error) {
 		req.Header.Set(key, value)
 	}
 
-	e.logger.Debugf("Making request: %s", url)
+	e.logger.Debugf("Making rate-limited request: %s", url)
 
 	resp, err := e.client.Do(req)
 	if err != nil {
@@ -131,6 +151,34 @@ func (e *EastMoneyCollector) makeRequest(url string) (*http.Response, error) {
 	}
 
 	return resp, nil
+}
+
+// SetRateLimit 动态设置限流速率
+func (e *EastMoneyCollector) SetRateLimit(requestsPerSecond int) {
+	if requestsPerSecond <= 0 {
+		requestsPerSecond = 1 // 最小值为1
+	}
+
+	e.Config.RateLimit = requestsPerSecond
+	e.limiter.SetLimit(rate.Limit(requestsPerSecond))
+	e.limiter.SetBurst(requestsPerSecond * 2) // 突发容量为速率的2倍
+
+	e.logger.Infof("Rate limit updated to %d requests/second", requestsPerSecond)
+}
+
+// GetRateLimit 获取当前限流速率
+func (e *EastMoneyCollector) GetRateLimit() int {
+	return e.Config.RateLimit
+}
+
+// GetRateLimitStats 获取限流统计信息
+func (e *EastMoneyCollector) GetRateLimitStats() map[string]interface{} {
+	return map[string]interface{}{
+		"rate_limit":    e.Config.RateLimit,
+		"current_limit": float64(e.limiter.Limit()),
+		"burst_size":    e.limiter.Burst(),
+		"tokens":        e.limiter.Tokens(), // 当前可用令牌数
+	}
 }
 
 // EastMoneyStockListResponse 东方财富股票列表响应结构
@@ -528,140 +576,6 @@ func (e *EastMoneyCollector) GetStockDetail(tsCode string) (*model.Stock, error)
 // GetStockData 获取股票历史数据 (兼容旧接口)
 func (e *EastMoneyCollector) GetStockData(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error) {
 	return e.GetDailyKLine(tsCode, startDate, endDate)
-}
-
-// GetDailyKLine 获取日K线数据
-func (e *EastMoneyCollector) GetDailyKLine(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error) {
-	e.logger.Infof("Fetching daily K-line data for %s from %s to %s", tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
-
-	// 从tsCode解析股票代码和市场
-	parts := strings.Split(tsCode, ".")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid tsCode format: %s", tsCode)
-	}
-
-	symbol := parts[0]
-	market := parts[1]
-
-	// 构建请求URL - 使用你提供的新API
-	baseURL := "https://push2his.eastmoney.com/api/qt/stock/kline/get"
-	params := url.Values{}
-	params.Set("ut", "fa5fd1943c7b386f172d6893dbfba10b")
-	params.Set("rtntype", "6")
-	params.Set("cb", fmt.Sprintf("jsonp%d", time.Now().UnixMilli()))
-
-	// 设置股票代码
-	var secid string
-	if market == "SH" {
-		secid = fmt.Sprintf("1.%s", symbol)
-	} else if market == "SZ" {
-		secid = fmt.Sprintf("0.%s", symbol)
-	} else {
-		return nil, fmt.Errorf("unsupported market: %s", market)
-	}
-	params.Set("secid", secid)
-
-	// 设置字段和K线类型
-	params.Set("fields1", "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13")
-	params.Set("fields2", "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61")
-	params.Set("klt", "101") // 日K线
-	params.Set("fqt", "1")   // 前复权
-	// 设置时间范围 - 使用你提供的格式
-	params.Set("beg", "0")        // 从最早开始
-	params.Set("end", "20500101") // 到未来日期
-
-	requestURL := baseURL + "?" + params.Encode()
-
-	resp, err := e.makeRequest(requestURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	// 解析JSONP响应
-	bodyStr := string(body)
-	// 尝试多种JSONP格式
-	var jsonData string
-
-	// 尝试jQuery格式
-	re1 := regexp.MustCompile(`jQuery\d+_\d+\((.*)\)`)
-	matches1 := re1.FindStringSubmatch(bodyStr)
-	if len(matches1) >= 2 {
-		jsonData = matches1[1]
-	} else {
-		// 尝试jsonp格式
-		re2 := regexp.MustCompile(`jsonp\d+\((.*)\)`)
-		matches2 := re2.FindStringSubmatch(bodyStr)
-		if len(matches2) >= 2 {
-			jsonData = matches2[1]
-		} else {
-			return nil, fmt.Errorf("invalid JSONP response format: %s", bodyStr[:100])
-		}
-	}
-
-	var response struct {
-		RC   int `json:"rc"`
-		RT   int `json:"rt"`
-		Data struct {
-			Code   string   `json:"code"`
-			Market int      `json:"market"`
-			Name   string   `json:"name"`
-			Klines []string `json:"klines"`
-		} `json:"data"`
-	}
-
-	if err := json.Unmarshal([]byte(jsonData), &response); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %v", err)
-	}
-
-	if response.RC != 0 {
-		return nil, fmt.Errorf("API error: rc=%d", response.RC)
-	}
-
-	var dailyData []model.DailyData
-
-	for _, kline := range response.Data.Klines {
-		// K线数据格式：日期,开盘,收盘,最高,最低,成交量,成交额,振幅,涨跌幅,涨跌额,换手率
-		fields := strings.Split(kline, ",")
-		if len(fields) < 11 {
-			continue
-		}
-
-		// 解析日期并转换为int格式 (YYYYMMDD)
-		tradeDate, err := time.Parse("2006-01-02", fields[0])
-		if err != nil {
-			e.logger.Warnf("Failed to parse date %s: %v", fields[0], err)
-			continue
-		}
-
-		// 转换为YYYYMMDD格式的int
-		tradeDateInt := tradeDate.Year()*10000 + int(tradeDate.Month())*100 + tradeDate.Day()
-
-		data := model.DailyData{
-			TsCode:    tsCode,
-			TradeDate: tradeDateInt,
-			Open:      parseFloat(fields[1]),
-			Close:     parseFloat(fields[2]),
-			High:      parseFloat(fields[3]),
-			Low:       parseFloat(fields[4]),
-			Volume:    int64(parseFloat(fields[5])),
-			Amount:    parseFloat(fields[6]),
-			CreatedAt: time.Now().Unix(),
-		}
-
-		// 注意：DailyData模型中暂未包含涨跌幅和涨跌额字段
-		// 如需要可以在模型中添加这些字段
-
-		dailyData = append(dailyData, data)
-	}
-
-	e.logger.Infof("Fetched %d daily K-line records for %s", len(dailyData), tsCode)
-	return dailyData, nil
 }
 
 // GetRealtimeData 获取实时数据
@@ -1067,9 +981,32 @@ func (e *EastMoneyCollector) GetLatestShareholderCount(tsCode string) (*model.Sh
 	return &latest, nil
 }
 
+// GetDailyKLine 获取日K线数据
+func (e *EastMoneyCollector) GetDailyKLine(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error) {
+	klines, err := e.fetchKLineRawData(tsCode, KLineTypeDaily)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.DailyData, 0, len(klines))
+	for _, kline := range klines {
+		if data, err := e.parser.ParseToDaily(tsCode, kline); err == nil {
+			// 根据时间范围过滤数据
+			if e.isInDateRange(data.TradeDate, startDate, endDate) {
+				result = append(result, *data)
+			}
+		} else {
+			e.logger.Warnf("Failed to parse daily K-line data: %v", err)
+		}
+	}
+
+	e.logger.Infof("Fetched %d daily K-line records for %s (filtered from %d total)", len(result), tsCode, len(klines))
+	return result, nil
+}
+
 // GetWeeklyKLine 获取周K线数据
 func (e *EastMoneyCollector) GetWeeklyKLine(tsCode string, startDate, endDate time.Time) ([]model.WeeklyData, error) {
-	klines, err := e.fetchKLineRawData(tsCode, startDate, endDate, KLineTypeWeekly)
+	klines, err := e.fetchKLineRawData(tsCode, KLineTypeWeekly)
 	if err != nil {
 		return nil, err
 	}
@@ -1092,7 +1029,7 @@ func (e *EastMoneyCollector) GetWeeklyKLine(tsCode string, startDate, endDate ti
 
 // GetMonthlyKLine 获取月K线数据
 func (e *EastMoneyCollector) GetMonthlyKLine(tsCode string, startDate, endDate time.Time) ([]model.MonthlyData, error) {
-	klines, err := e.fetchKLineRawData(tsCode, startDate, endDate, KLineTypeMonthly)
+	klines, err := e.fetchKLineRawData(tsCode, KLineTypeMonthly)
 	if err != nil {
 		return nil, err
 	}
@@ -1115,7 +1052,7 @@ func (e *EastMoneyCollector) GetMonthlyKLine(tsCode string, startDate, endDate t
 
 // GetYearlyKLine 获取年K线数据
 func (e *EastMoneyCollector) GetYearlyKLine(tsCode string, startDate, endDate time.Time) ([]model.YearlyData, error) {
-	klines, err := e.fetchKLineRawData(tsCode, startDate, endDate, KLineTypeYearly)
+	klines, err := e.fetchKLineRawData(tsCode, KLineTypeYearly)
 	if err != nil {
 		return nil, err
 	}
@@ -1137,7 +1074,8 @@ func (e *EastMoneyCollector) GetYearlyKLine(tsCode string, startDate, endDate ti
 }
 
 // fetchKLineRawData 获取原始K线数据
-func (e *EastMoneyCollector) fetchKLineRawData(tsCode string, startDate, endDate time.Time, klineType string) ([]string, error) {
+func (e *EastMoneyCollector) fetchKLineRawData(tsCode string, klineType KLineType) (
+	[]string, error) {
 	e.logger.Debugf("Fetching K-line data for %s, type: %s", tsCode, klineType)
 
 	// 构建请求URL

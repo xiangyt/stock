@@ -8,7 +8,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./cmd/worker ./cmd/worker/main
 
 ### 打包成docker镜像
 ```
-docker build -f ./cmd/worker/Dockerfile -t stock .
+docker build -f ./cmd/worker/Dockerfile -t stock-worker:0.0.1 .
 ```
 
 ### 启动镜像

@@ -17,6 +17,32 @@ func NewKLineParser() *KLineParser {
 	return &KLineParser{}
 }
 
+// ParseToDaily 解析为日K线数据
+func (p *KLineParser) ParseToDaily(tsCode, kline string) (*model.DailyData, error) {
+	fields := strings.Split(kline, ",")
+	if len(fields) < 7 {
+		return nil, fmt.Errorf("invalid kline data format: %s", kline)
+	}
+
+	tradeDateInt, err := p.parseTradeDate(fields[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.DailyData{
+		TsCode:    tsCode,
+		TradeDate: tradeDateInt,
+		Open:      p.parseFloat(fields[1]),
+		High:      p.parseFloat(fields[3]),
+		Low:       p.parseFloat(fields[4]),
+		Close:     p.parseFloat(fields[2]),
+		Volume:    p.parseInt64(fields[5]),
+		Amount:    p.parseFloat(fields[6]),
+		CreatedAt: time.Now().Unix(),
+		UpdatedAt: time.Now().Unix(),
+	}, nil
+}
+
 // ParseToWeekly 解析为周K线数据
 func (p *KLineParser) ParseToWeekly(tsCode, kline string) (*model.WeeklyData, error) {
 	fields := strings.Split(kline, ",")

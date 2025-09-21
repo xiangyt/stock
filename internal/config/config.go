@@ -17,6 +17,7 @@ type Config struct {
 	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
 	Metrics   MetricsConfig   `mapstructure:"metrics"`
 	CORS      CORSConfig      `mapstructure:"cors"`
+	Notify    NotifyConfig    `mapstructure:"notify"`
 }
 
 // AppConfig 应用配置
@@ -100,6 +101,25 @@ type CORSConfig struct {
 	ExposedHeaders   []string `mapstructure:"exposed_headers"`
 	AllowCredentials bool     `mapstructure:"allow_credentials"`
 	MaxAge           int      `mapstructure:"max_age"`
+}
+
+// NotifyConfig 通知配置
+type NotifyConfig struct {
+	DingTalk *DingTalkConfig `mapstructure:"dingtalk"`
+	WeWork   *WeWorkConfig   `mapstructure:"wework"`
+}
+
+// DingTalkConfig 钉钉机器人配置
+type DingTalkConfig struct {
+	Enabled bool   `mapstructure:"enabled"`
+	Webhook string `mapstructure:"webhook"`
+	Secret  string `mapstructure:"secret"`
+}
+
+// WeWorkConfig 企微机器人配置
+type WeWorkConfig struct {
+	Enabled bool   `mapstructure:"enabled"`
+	Webhook string `mapstructure:"webhook"`
 }
 
 // Load 加载配置
