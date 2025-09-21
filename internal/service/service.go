@@ -10,10 +10,6 @@ import (
 // Services 服务集合
 type Services struct {
 	Database           *DatabaseService
-	DataCollector      *DataCollectorService
-	TechnicalAnalyzer  *TechnicalAnalyzerService
-	StrategyEngine     *StrategyEngineService
-	BacktestEngine     *BacktestEngineService
 	DataService        *DataService
 	PerformanceService *PerformanceService
 	ShareholderService *ShareholderService
@@ -23,27 +19,10 @@ type Services struct {
 func NewServices(cfg *config.Config, logger *logger.Logger) (*Services, error) {
 	// 初始化数据库服务 (使用单例)
 	dbService := GetDatabaseService(cfg, logger)
-
-	// 初始化数据采集服务 (使用单例)
-	dataCollectorService := GetDataCollectorService(cfg, logger)
-
-	// 初始化技术分析服务 (使用单例)
-	technicalAnalyzerService := GetTechnicalAnalyzerService(cfg, logger)
-
-	// 初始化策略引擎服务 (使用单例)
-	strategyEngineService := GetStrategyEngineService(cfg, logger)
-
-	// 初始化回测引擎服务 (使用单例)
-	backtestEngineService := GetBacktestEngineService(cfg, logger)
-
 	// 注意：DataService、PerformanceService和ShareholderService需要数据库连接，这里先设为nil
 	// 在实际使用时需要通过InitServicesWithDB来初始化
 	return &Services{
 		Database:           dbService,
-		DataCollector:      dataCollectorService,
-		TechnicalAnalyzer:  technicalAnalyzerService,
-		StrategyEngine:     strategyEngineService,
-		BacktestEngine:     backtestEngineService,
 		DataService:        nil, // 需要数据库连接后初始化
 		PerformanceService: nil, // 需要数据库连接后初始化
 		ShareholderService: nil, // 需要数据库连接后初始化
@@ -123,34 +102,6 @@ func GetDataCollectorService(cfg *config.Config, logger *logger.Logger) *DataCol
 // NewDataCollectorService 创建数据采集服务 (保持向后兼容)
 func NewDataCollectorService(cfg *config.Config, logger *logger.Logger) *DataCollectorService {
 	return GetDataCollectorService(cfg, logger)
-}
-
-// UpdateAllData 更新所有数据
-func (s *DataCollectorService) UpdateAllData(source string) error {
-	s.logger.Infof("Updating all data from %s...", source)
-	// TODO: 实现数据更新逻辑
-	return nil
-}
-
-// UpdateDailyData 更新日线数据
-func (s *DataCollectorService) UpdateDailyData() error {
-	s.logger.Info("Updating daily data...")
-	// TODO: 实现日线数据更新逻辑
-	return nil
-}
-
-// UpdateFinancialData 更新财务数据
-func (s *DataCollectorService) UpdateFinancialData() error {
-	s.logger.Info("Updating financial data...")
-	// TODO: 实现财务数据更新逻辑
-	return nil
-}
-
-// UpdateRealtimeData 更新实时数据
-func (s *DataCollectorService) UpdateRealtimeData() error {
-	s.logger.Debug("Updating realtime data...")
-	// TODO: 实现实时数据更新逻辑
-	return nil
 }
 
 // TechnicalAnalyzerService 技术分析服务

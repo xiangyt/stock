@@ -78,10 +78,49 @@ func setupCronJobs(c *cron.Cron, services *service.Services) {
 		services.DataService.SyncStockList()
 	})
 
-	// 每天晚上10点执行主要任务
-	c.AddFunc("0 0 20 * * *", func() {
-		logger.Info("开始执行每日晚上8点定时任务...")
-		executeNightlyTasks(services)
+	c.AddFunc("0 10 16 * * *", func() {
+		// 日K线数据采集 - 第一优先级
+		_ = collectAndPersistDailyKLineData(services)
+	})
+
+	c.AddFunc("0 10 17 * * *", func() {
+		// 日K线数据采集 - 第一优先级
+		_ = collectAndPersistDailyKLineData(services)
+		// 周K线数据采集 - 第二优先级
+		_ = collectAndPersistWeeklyKLineData(services)
+	})
+
+	c.AddFunc("0 10 18 * * *", func() {
+		// 日K线数据采集 - 第一优先级
+		_ = collectAndPersistDailyKLineData(services)
+		// 月K线数据采集 - 第三优先级
+		_ = collectAndPersistMonthlyKLineData(services)
+	})
+
+	c.AddFunc("0 10 19 * * *", func() {
+		// 周K线数据采集 - 第二优先级
+		_ = collectAndPersistWeeklyKLineData(services)
+		// 年K线数据采集 - 第四优先级
+		_ = collectAndPersistYearlyKLineData(services)
+	})
+
+	c.AddFunc("0 10 20 * * *", func() {
+		// 月K线数据采集 - 第三优先级
+		_ = collectAndPersistMonthlyKLineData(services)
+		// 年K线数据采集 - 第四优先级
+		_ = collectAndPersistYearlyKLineData(services)
+	})
+
+	c.AddFunc("0 10 21 * * *", func() {
+		// 月K线数据采集 - 第三优先级
+		_ = collectAndPersistMonthlyKLineData(services)
+		// 年K线数据采集 - 第四优先级
+		_ = collectAndPersistYearlyKLineData(services)
+	})
+
+	c.AddFunc("0 10 22 * * *", func() {
+		// 日K线数据采集 - 第一优先级
+		_ = collectAndPersistDailyKLineData(services)
 	})
 
 	logger.Info("定时任务配置完成！")
@@ -114,12 +153,12 @@ func initServicesWithDB(cfg *config.Config, db *gorm.DB) (*service.Services, err
 	}
 
 	// 初始化需要数据库连接的服务
-	services.DataService = service.NewDataService(db, logger.GetGlobalLogger())
+	services.DataService = service.GetDataService(db, logger.GetGlobalLogger())
 
 	// 为PerformanceService创建必要的依赖
 	performanceRepo := repository.NewPerformanceRepository(db)
 	stockRepo := repository.NewStockRepository(db, logger.GetGlobalLogger())
-	eastMoneyCollector := collector.NewEastMoneyCollector(logger.GetGlobalLogger())
+	eastMoneyCollector := collector.GetCollectorFactory(logger.GetGlobalLogger()).GetEastMoneyCollector()
 	services.PerformanceService = service.NewPerformanceService(performanceRepo, stockRepo, eastMoneyCollector, logger.GetGlobalLogger())
 
 	// 为ShareholderService创建必要的依赖
@@ -153,7 +192,7 @@ func collectStockBasicInfo(services *service.Services) error {
 func collectAndPersistDailyKLineData(services *service.Services) error {
 	logger.Info("开始采集日K线数据...")
 
-	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(100, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -205,7 +244,7 @@ func collectAndPersistDailyKLineData(services *service.Services) error {
 // collectAndPersistWeeklyKLineData 采集并保存周K线数据
 func collectAndPersistWeeklyKLineData(services *service.Services) error {
 	logger.Info("开始采集周K线数据...")
-	executor := utils.NewConcurrentExecutor(100, 30*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(100, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -384,6 +423,9 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock) error {
 			return fmt.Errorf("解析交易日期失败: %v", err)
 		}
 		startDate = tradeDate
+		if isLastTradeDate(latestData.TradeDate) { // 今天的数据已经固化成功
+			return nil
+		}
 	}
 
 	// 实现真正的数据同步逻辑
@@ -421,14 +463,14 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock) error {
 // syncStockWeeklyKLine 同步单只股票的周K线数据
 func syncStockWeeklyKLine(services *service.Services, stock *model.Stock) error {
 
-	// 第二步：查出该股票最新的一条周K线数据
+	// 第一步：查出该股票最新的一条周K线数据
 	klinePersistence := service.GetKLinePersistenceService(services.DataService.GetDB(), logger.GetGlobalLogger())
 	latestWeeklyData, err := klinePersistence.GetLatestWeeklyData(stock.TsCode)
 	if err != nil {
 		return fmt.Errorf("获取最新周K线数据失败: %v", err)
 	}
 
-	// 第三步：确定采集的起始时间
+	// 第二步：确定采集的起始时间
 	var startDate time.Time
 	if latestWeeklyData == nil {
 		// 如果没有最新一条数据，默认起始时间为1990年1月1日
@@ -441,7 +483,9 @@ func syncStockWeeklyKLine(services *service.Services, stock *model.Stock) error 
 		if err != nil {
 			return fmt.Errorf("解析最新周K线交易日期失败: %v", err)
 		}
-
+		if isLastTradeDate(latestWeeklyData.TradeDate) { // 今天的数据已经固化成功
+			return nil
+		}
 		// 删除最新的周K线数据
 		if err := klinePersistence.DeleteData(stock.TsCode, tradeDate, "weekly"); err != nil {
 			logger.Errorf("删除最新周K线数据失败: %v", err)
@@ -493,7 +537,9 @@ func syncStockMonthlyKLine(services *service.Services, stock *model.Stock) error
 		if err != nil {
 			return fmt.Errorf("解析最新月K线交易日期失败: %v", err)
 		}
-
+		if isLastTradeDate(latestMonthlyData.TradeDate) { // 今天的数据已经固化成功
+			return nil
+		}
 		// 删除最新的月K线数据
 		if err := klinePersistence.DeleteData(stock.TsCode, tradeDate, "monthly"); err != nil {
 			logger.Errorf("删除最新月K线数据失败: %v", err)
@@ -524,20 +570,14 @@ func syncStockMonthlyKLine(services *service.Services, stock *model.Stock) error
 
 // syncStockYearlyKLine 同步单只股票的年K线数据
 func syncStockYearlyKLine(services *service.Services, stock *model.Stock) error {
-	// 第一步：检查股票是否活跃，不活跃直接跳过
-	if !stock.IsActive {
-		logger.Debugf("股票 %s 不活跃，跳过年K线数据同步", stock.TsCode)
-		return fmt.Errorf("stock_inactive")
-	}
-
-	// 第二步：查出该股票最新的一条年K线数据
+	// 第一步：查出该股票最新的一条年K线数据
 	klinePersistence := service.GetKLinePersistenceService(services.DataService.GetDB(), logger.GetGlobalLogger())
 	latestYearlyData, err := klinePersistence.GetLatestYearlyData(stock.TsCode)
 	if err != nil {
 		return fmt.Errorf("获取最新年K线数据失败: %v", err)
 	}
 
-	// 第三步：确定采集的起始时间
+	// 第二步：确定采集的起始时间
 	var startDate time.Time
 	if latestYearlyData == nil {
 		// 如果没有最新一条数据，默认起始时间为1990年1月1日
@@ -551,6 +591,9 @@ func syncStockYearlyKLine(services *service.Services, stock *model.Stock) error 
 			return fmt.Errorf("解析最新年K线交易日期失败: %v", err)
 		}
 
+		if isLastTradeDate(latestYearlyData.TradeDate) { // 今天的数据已经固化成功
+			return nil
+		}
 		// 删除最新的年K线数据
 		if err := klinePersistence.DeleteData(stock.TsCode, tradeDate, "yearly"); err != nil {
 			logger.Errorf("删除最新年K线数据失败: %v", err)
@@ -702,4 +745,50 @@ func collectAndPersistShareholderCounts(services *service.Services) error {
 		stats.TotalTasks, successCount, stats.FailedTasks, totalCounts, stats.TotalDuration, stats.AverageDuration)
 
 	return nil
+}
+
+// isLastTradeDate 是否为最近一个交易日
+func isLastTradeDate(tradeDate int) bool {
+	// 将输入的交易日期转换为time.Time
+	tradeDateStr := fmt.Sprintf("%d", tradeDate)
+	inputDate, err := time.Parse("20060102", tradeDateStr)
+	if err != nil {
+		logger.Errorf("解析交易日期失败: %v", err)
+		return false
+	}
+
+	// 获取当前时间
+	now := time.Now()
+
+	// 如果输入日期是未来日期，返回false
+	if inputDate.After(now) {
+		return false
+	}
+
+	// 从今天开始往前找最近的交易日
+	currentDate := now
+	for {
+		// 检查当前日期是否为交易日（周一到周五，排除节假日）
+		if isWorkingDay(currentDate) {
+			// 找到最近的交易日，比较是否与输入日期相同
+			lastTradeDate := currentDate.Year()*10000 + int(currentDate.Month())*100 + currentDate.Day()
+			return tradeDate == lastTradeDate
+		}
+		// 往前推一天
+		currentDate = currentDate.AddDate(0, 0, -1)
+
+		// 防止无限循环，最多往前找30天
+		if now.Sub(currentDate).Hours() > 24*30 {
+			break
+		}
+	}
+
+	return false
+}
+
+// isWorkingDay 判断是否为工作日（周一到周五，简化版本，不考虑节假日）
+func isWorkingDay(date time.Time) bool {
+	weekday := date.Weekday()
+	// 周一到周五为工作日
+	return weekday >= time.Monday && weekday <= time.Friday
 }

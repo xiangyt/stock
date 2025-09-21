@@ -93,6 +93,31 @@ func (p *KLineParser) ParseToMonthly(tsCode, kline string) (*model.MonthlyData, 
 	}, nil
 }
 
+// ParseToQuarterly 解析为季K线数据
+func (p *KLineParser) ParseToQuarterly(tsCode, kline string) (*model.QuarterlyData, error) {
+	fields := strings.Split(kline, ",")
+	if len(fields) < 7 {
+		return nil, fmt.Errorf("invalid kline data format: %s", kline)
+	}
+
+	tradeDateInt, err := p.parseTradeDate(fields[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.QuarterlyData{
+		TsCode:    tsCode,
+		TradeDate: tradeDateInt,
+		Open:      p.parseFloat(fields[1]),
+		Close:     p.parseFloat(fields[2]),
+		High:      p.parseFloat(fields[3]),
+		Low:       p.parseFloat(fields[4]),
+		Volume:    p.parseInt64(fields[5]),
+		Amount:    p.parseFloat(fields[6]),
+		CreatedAt: time.Now().Unix(),
+	}, nil
+}
+
 // ParseToYearly 解析为年K线数据
 func (p *KLineParser) ParseToYearly(tsCode, kline string) (*model.YearlyData, error) {
 	fields := strings.Split(kline, ",")

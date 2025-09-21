@@ -97,5 +97,7 @@ func TestYearlyKLineCollection(t *testing.T) {
 		logger.Fatalf("Failed to initialize services: %v", err)
 	}
 
-	collectAndPersistYearlyKLineData(services)
+	//collectAndPersistYearlyKLineData(services)
+	syncStockYearlyKLine(services, &model.Stock{TsCode: "000015.SZ"})
+
 }
