@@ -60,7 +60,7 @@ func newEastMoneyCollector(logger *logger.Logger) *EastMoneyCollector {
 	config := CollectorConfig{
 		Name:      "eastmoney",
 		BaseURL:   "https://push2.eastmoney.com",
-		Timeout:   30 * time.Second,
+		Timeout:   10 * time.Second,
 		RateLimit: 3, // 每秒10个请求
 		Headers: map[string]string{
 			"Accept":          "*/*",
@@ -76,7 +76,12 @@ func newEastMoneyCollector(logger *logger.Logger) *EastMoneyCollector {
 			"sec-fetch-site":     "same-site",
 			"cache-control":      "no-cache",
 			"pargma":             "no-cache",
-			//"cookie":             "qgqp_b_id=70e1191db491f7e84374e18218beb159; st_nvi=t19Iuw0pv7cziS9NpDFvwac78; nid=00c18f59b20816388614a11f44a7a467; nid_create_time=1755334507172; gvi=SPp0K7jZ5OHSqiz2pigL09303; gvi_create_time=1755334507172; st_si=67468401804019; fullscreengg=1; fullscreengg2=1; websitepoptg_api_time=1758373501952; st_asi=delete; wsc_checkuser_ok=1; st_pvi=30544878065704; st_sp=2025-08-16%2016%3A55%3A06; st_inirUrl=https%3A%2F%2Fdata.eastmoney.com%2Fgphg%2F; st_sn=166; st_psi=20250921003620276-113300300813-8448178144",
+			"cookie": "qgqp_b_id=70e1191db491f7e84374e18218beb159; st_nvi=t19Iuw0pv7cziS9NpDFvwac78; " +
+				"nid=00c18f59b20816388614a11f44a7a467; nid_create_time=1755334507172; gvi=SPp0K7jZ5OHSqiz2pigL09303; " +
+				"gvi_create_time=1755334507172; st_si=67468401804019; fullscreengg=1; fullscreengg2=1; " +
+				"websitepoptg_api_time=1758373501952; st_asi=delete; wsc_checkuser_ok=1; st_pvi=30544878065704; " +
+				"st_sp=2025-08-16%2016%3A55%3A06; st_inirUrl=https%3A%2F%2Fdata.eastmoney.com%2Fgphg%2F; st_sn=166; " +
+				"st_psi=20250921003620276-113300300813-8448178144; wsc_checkuser_ok=1",
 		},
 	}
 

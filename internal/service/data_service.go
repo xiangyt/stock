@@ -81,12 +81,15 @@ func (s *DataService) SyncStockList() error {
 
 	s.logger.Infof("Fetched %d stocks from EastMoney", len(stocks))
 
-	for _, stock := range stocks {
+	for i, stock := range stocks {
 		if strings.HasPrefix(stock.Name, "XD") { // 除权日清理所有k线数据
 			_ = s.dailyDataRepo.DeleteDailyData(stock.TsCode, time.Time{})
 			_ = s.weeklyDataRepo.DeleteWeeklyData(stock.TsCode, time.Time{})
 			_ = s.monthlyDataRepo.DeleteMonthlyData(stock.TsCode, time.Time{})
 			_ = s.yearlyDataRepo.DeleteYearlyData(stock.TsCode, time.Time{})
+		}
+		if strings.HasPrefix(stock.Name, "PT") { // 退市
+			stocks[i].IsActive = false
 		}
 	}
 	// 批量更新或插入股票数据

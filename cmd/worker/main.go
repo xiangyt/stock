@@ -423,9 +423,7 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock) error {
 			return fmt.Errorf("解析交易日期失败: %v", err)
 		}
 		startDate = tradeDate
-		now := time.Now()
-		today := now.Year()*10000 + int(now.Month())*100 + now.Day()
-		if latestData.TradeDate == today { // 今天的数据已经固化成功
+		if isLastTradeDate(latestData.TradeDate) { // 今天的数据已经固化成功
 			return nil
 		}
 	}
@@ -485,9 +483,7 @@ func syncStockWeeklyKLine(services *service.Services, stock *model.Stock) error 
 		if err != nil {
 			return fmt.Errorf("解析最新周K线交易日期失败: %v", err)
 		}
-		now := time.Now()
-		today := now.Year()*10000 + int(now.Month())*100 + now.Day()
-		if latestWeeklyData.TradeDate == today { // 今天的数据已经固化成功
+		if isLastTradeDate(latestWeeklyData.TradeDate) { // 今天的数据已经固化成功
 			return nil
 		}
 		// 删除最新的周K线数据
@@ -541,7 +537,9 @@ func syncStockMonthlyKLine(services *service.Services, stock *model.Stock) error
 		if err != nil {
 			return fmt.Errorf("解析最新月K线交易日期失败: %v", err)
 		}
-
+		if isLastTradeDate(latestMonthlyData.TradeDate) { // 今天的数据已经固化成功
+			return nil
+		}
 		// 删除最新的月K线数据
 		if err := klinePersistence.DeleteData(stock.TsCode, tradeDate, "monthly"); err != nil {
 			logger.Errorf("删除最新月K线数据失败: %v", err)
@@ -592,9 +590,8 @@ func syncStockYearlyKLine(services *service.Services, stock *model.Stock) error 
 		if err != nil {
 			return fmt.Errorf("解析最新年K线交易日期失败: %v", err)
 		}
-		now := time.Now()
-		today := now.Year()*10000 + int(now.Month())*100 + now.Day()
-		if latestYearlyData.TradeDate == today { // 今天的数据已经固化成功
+
+		if isLastTradeDate(latestYearlyData.TradeDate) { // 今天的数据已经固化成功
 			return nil
 		}
 		// 删除最新的年K线数据
@@ -748,4 +745,50 @@ func collectAndPersistShareholderCounts(services *service.Services) error {
 		stats.TotalTasks, successCount, stats.FailedTasks, totalCounts, stats.TotalDuration, stats.AverageDuration)
 
 	return nil
+}
+
+// isLastTradeDate 是否为最近一个交易日
+func isLastTradeDate(tradeDate int) bool {
+	// 将输入的交易日期转换为time.Time
+	tradeDateStr := fmt.Sprintf("%d", tradeDate)
+	inputDate, err := time.Parse("20060102", tradeDateStr)
+	if err != nil {
+		logger.Errorf("解析交易日期失败: %v", err)
+		return false
+	}
+
+	// 获取当前时间
+	now := time.Now()
+
+	// 如果输入日期是未来日期，返回false
+	if inputDate.After(now) {
+		return false
+	}
+
+	// 从今天开始往前找最近的交易日
+	currentDate := now
+	for {
+		// 检查当前日期是否为交易日（周一到周五，排除节假日）
+		if isWorkingDay(currentDate) {
+			// 找到最近的交易日，比较是否与输入日期相同
+			lastTradeDate := currentDate.Year()*10000 + int(currentDate.Month())*100 + currentDate.Day()
+			return tradeDate == lastTradeDate
+		}
+		// 往前推一天
+		currentDate = currentDate.AddDate(0, 0, -1)
+
+		// 防止无限循环，最多往前找30天
+		if now.Sub(currentDate).Hours() > 24*30 {
+			break
+		}
+	}
+
+	return false
+}
+
+// isWorkingDay 判断是否为工作日（周一到周五，简化版本，不考虑节假日）
+func isWorkingDay(date time.Time) bool {
+	weekday := date.Weekday()
+	// 周一到周五为工作日
+	return weekday >= time.Monday && weekday <= time.Friday
 }

@@ -2,23 +2,18 @@ package collector
 
 import (
 	"fmt"
-	"stock/internal/model"
-	"stock/internal/utils"
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"stock/internal/logger"
+	"stock/internal/model"
 )
 
 // TestEastMoneyCollector_Pagination 测试分页功能
 func TestEastMoneyCollector_Pagination(t *testing.T) {
 	// 创建一个简单的logger
-	logrusLogger := logrus.New()
-	logrusLogger.SetLevel(logrus.InfoLevel)
-	logger := &utils.Logger{Logger: logrusLogger}
-
-	collector := newEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger.GetGlobalLogger())
 
 	// 测试分页获取
 	page := 1
@@ -72,11 +67,7 @@ func TestEastMoneyCollector_Pagination(t *testing.T) {
 // TestEastMoneyCollector_GetDailyKLine_001208 测试获取001208的日K数据
 func TestEastMoneyCollector_GetDailyKLine_001208(t *testing.T) {
 	// 创建一个简单的logger
-	logrusLogger := logrus.New()
-	logrusLogger.SetLevel(logrus.InfoLevel)
-	logger := &utils.Logger{Logger: logrusLogger}
-
-	collector := newEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger.GetGlobalLogger())
 
 	// 测试股票代码 001208.SZ
 	stockCode := "001208.SZ"
@@ -151,42 +142,38 @@ func TestEastMoneyCollector_GetDailyKLine_001208(t *testing.T) {
 // TestEastMoneyCollector_GetRecentDailyData_001208 测试获取001208最近的交易数据
 func TestEastMoneyCollector_GetRecentDailyData_001208(t *testing.T) {
 	// 创建一个简单的logger
-	logrusLogger := logrus.New()
-	logrusLogger.SetLevel(logrus.InfoLevel)
-	logger := &utils.Logger{Logger: logrusLogger}
-
-	collector := newEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger.GetGlobalLogger())
 
 	// 测试股票代码 001208.SZ
-	stockCode := "001208.SZ"
+	stockCode := "000001.SZ"
 
 	// 设置时间范围：最近3个月
 	endDate := time.Now()
-	startDate := endDate.AddDate(0, -3, 0)
+	startDate := time.Date(2023, time.December, 29, 0, 0, 0, 0, time.Local)
 
 	t.Logf("Testing GetDailyKLine for recent data of stock: %s", stockCode)
 	t.Logf("Date range: %s to %s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
 
 	// 获取日K数据
-	dailyData, err := collector.GetDailyKLine(stockCode, startDate, endDate)
+	data, err := collector.GetYearlyKLine(stockCode, startDate, endDate)
 
 	if err != nil {
-		t.Fatalf("GetDailyKLine returned error: %v", err)
+		t.Fatalf("GetKLine returned error: %v", err)
 	}
 
-	assert.NotNil(t, dailyData)
-	assert.True(t, len(dailyData) > 0, "Should have recent daily data")
+	assert.NotNil(t, data)
+	assert.True(t, len(data) > 0, "Should have recent data")
 
-	t.Logf("Successfully retrieved %d recent daily K-line records for %s", len(dailyData), stockCode)
+	t.Logf("Successfully retrieved %d recent K-line records for %s", len(data), stockCode)
 
 	// 找到最新的交易日数据
-	var latestData *model.DailyData
+	var latestData *model.YearlyData
 	latestTradeDate := 0
 
-	for i := range dailyData {
-		if dailyData[i].TradeDate > latestTradeDate {
-			latestTradeDate = dailyData[i].TradeDate
-			latestData = &dailyData[i]
+	for i := range data {
+		if data[i].TradeDate > latestTradeDate {
+			latestTradeDate = data[i].TradeDate
+			latestData = &data[i]
 		}
 	}
 
@@ -202,12 +189,12 @@ func TestEastMoneyCollector_GetRecentDailyData_001208(t *testing.T) {
 		t.Logf("成交额: %.2f万元", latestData.Amount/10000)
 
 		// 计算涨跌幅（需要前一交易日数据）
-		var prevData *model.DailyData
+		var prevData *model.YearlyData
 		prevTradeDate := 0
-		for i := range dailyData {
-			if dailyData[i].TradeDate < latestTradeDate && dailyData[i].TradeDate > prevTradeDate {
-				prevTradeDate = dailyData[i].TradeDate
-				prevData = &dailyData[i]
+		for i := range data {
+			if data[i].TradeDate < latestTradeDate && data[i].TradeDate > prevTradeDate {
+				prevTradeDate = data[i].TradeDate
+				prevData = &data[i]
 			}
 		}
 
@@ -224,8 +211,8 @@ func TestEastMoneyCollector_GetRecentDailyData_001208(t *testing.T) {
 	t.Logf("=== 最近10个交易日收盘价走势 ===")
 
 	// 按日期排序（降序）
-	sortedData := make([]model.DailyData, len(dailyData))
-	copy(sortedData, dailyData)
+	sortedData := make([]model.YearlyData, len(data))
+	copy(sortedData, data)
 
 	// 简单排序：找出最新的10个交易日
 	recentCount := 10
@@ -265,12 +252,7 @@ func TestEastMoneyCollector_GetRecentDailyData_001208(t *testing.T) {
 
 // TestEastMoneyCollector_GetPerformanceReports 测试获取业绩报表数据功能
 func TestEastMoneyCollector_GetPerformanceReports(t *testing.T) {
-	// 创建一个简单的logger
-	logrusLogger := logrus.New()
-	logrusLogger.SetLevel(logrus.InfoLevel)
-	logger := &utils.Logger{Logger: logrusLogger}
-
-	collector := newEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger.GetGlobalLogger())
 
 	// 测试股票代码
 	stockCode := "001208.SZ"
@@ -298,7 +280,7 @@ func TestEastMoneyCollector_GetPerformanceReports(t *testing.T) {
 		latestReport := reports[0]
 		t.Logf("=== 最新业绩报表数据 ===")
 		t.Logf("股票代码: %s", latestReport.TsCode)
-		t.Logf("报告期: %s", latestReport.ReportDate.Format("2006-01-02"))
+		t.Logf("报告期: %d", latestReport.ReportDate)
 
 		// 每股收益相关
 		t.Logf("每股收益(EPS): %.4f元", latestReport.EPS)
@@ -330,7 +312,7 @@ func TestEastMoneyCollector_GetPerformanceReports(t *testing.T) {
 		// 验证数据完整性
 		assert.Equal(t, stockCode, latestReport.TsCode, "TsCode should match")
 		// 注意：如果日期解析失败，ReportDate可能为零值，这在某些情况下是正常的
-		if latestReport.ReportDate.IsZero() {
+		if latestReport.ReportDate == 0 {
 			t.Logf("Warning: ReportDate is zero, possibly due to date parsing issues")
 		}
 
@@ -343,8 +325,8 @@ func TestEastMoneyCollector_GetPerformanceReports(t *testing.T) {
 		t.Logf("=== 最近%d期业绩对比 ===", displayCount)
 		for i := 0; i < displayCount; i++ {
 			report := reports[i]
-			t.Logf("报告期: %s, EPS: %.4f元, 营收: %.2f亿元, 净利润: %.2f亿元",
-				report.ReportDate.Format("2006-01-02"),
+			t.Logf("报告期: %d, EPS: %.4f元, 营收: %.2f亿元, 净利润: %.2f亿元",
+				report.ReportDate,
 				report.EPS,
 				report.Revenue/100000000,
 				report.NetProfit/100000000)
@@ -357,11 +339,7 @@ func TestEastMoneyCollector_GetPerformanceReports(t *testing.T) {
 // TestGetStockDetail_000418 测试获取000418股票详情
 func TestGetStockDetail_000418(t *testing.T) {
 	// 创建一个简单的logger
-	logrusLogger := logrus.New()
-	logrusLogger.SetLevel(logrus.InfoLevel)
-	logger := &utils.Logger{Logger: logrusLogger}
-
-	collector := newEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger.GetGlobalLogger())
 
 	// 测试股票代码 000418 (小天鹅A)
 	tsCode := "000418.SZ"
@@ -443,11 +421,7 @@ func TestGetStockDetail_000418(t *testing.T) {
 // TestEastMoneyCollector_GetPerformanceReports_InvalidCode 测试无效股票代码
 func TestEastMoneyCollector_GetPerformanceReports_InvalidCode(t *testing.T) {
 	// 创建一个简单的logger
-	logrusLogger := logrus.New()
-	logrusLogger.SetLevel(logrus.InfoLevel)
-	logger := &utils.Logger{Logger: logrusLogger}
-
-	collector := newEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger.GetGlobalLogger())
 
 	// 测试无效的股票代码格式
 	invalidCodes := []string{
@@ -474,11 +448,7 @@ func TestEastMoneyCollector_GetPerformanceReports_InvalidCode(t *testing.T) {
 // TestEastMoneyCollector_GetPerformanceReports_Multiple 测试批量获取业绩报表数据
 func TestEastMoneyCollector_GetPerformanceReports_Multiple(t *testing.T) {
 	// 创建一个简单的logger
-	logrusLogger := logrus.New()
-	logrusLogger.SetLevel(logrus.InfoLevel)
-	logger := &utils.Logger{Logger: logrusLogger}
-
-	collector := newEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger.GetGlobalLogger())
 
 	// 测试多个股票代码
 	testStocks := []string{
@@ -518,11 +488,7 @@ func TestEastMoneyCollector_GetPerformanceReports_Multiple(t *testing.T) {
 // TestEastMoneyCollector_GetLatestPerformanceReport 测试获取最新业绩报表数据
 func TestEastMoneyCollector_GetLatestPerformanceReport(t *testing.T) {
 	// 创建一个简单的logger
-	logrusLogger := logrus.New()
-	logrusLogger.SetLevel(logrus.InfoLevel)
-	logger := &utils.Logger{Logger: logrusLogger}
-
-	collector := newEastMoneyCollector(logger)
+	collector := newEastMoneyCollector(logger.GetGlobalLogger())
 
 	// 测试股票代码 000001.SZ
 	stockCode := "000001.SZ"
@@ -543,7 +509,7 @@ func TestEastMoneyCollector_GetLatestPerformanceReport(t *testing.T) {
 	if latestReport != nil {
 		t.Logf("=== 最新业绩报表数据 ===")
 		t.Logf("股票代码: %s", latestReport.TsCode)
-		t.Logf("报告期: %s", latestReport.ReportDate.Format("2006-01-02"))
+		t.Logf("报告期: %d", latestReport.ReportDate)
 		t.Logf("每股收益: %.4f元", latestReport.EPS)
 		t.Logf("营业收入: %.2f亿元", latestReport.Revenue/100000000)
 		t.Logf("净利润: %.2f亿元", latestReport.NetProfit/100000000)
@@ -551,7 +517,7 @@ func TestEastMoneyCollector_GetLatestPerformanceReport(t *testing.T) {
 		// 验证数据完整性
 		assert.Equal(t, stockCode, latestReport.TsCode, "TsCode should match")
 		// 注意：如果日期解析失败，ReportDate可能为零值，这在某些情况下是正常的
-		if latestReport.ReportDate.IsZero() {
+		if latestReport.ReportDate == 0 {
 			t.Logf("Warning: ReportDate is zero, possibly due to date parsing issues")
 		}
 
@@ -560,7 +526,8 @@ func TestEastMoneyCollector_GetLatestPerformanceReport(t *testing.T) {
 		if err == nil && len(allReports) > 0 {
 			// 验证返回的确实是最新的报表
 			for _, report := range allReports {
-				assert.True(t, latestReport.ReportDate.After(report.ReportDate) || latestReport.ReportDate.Equal(report.ReportDate),
+				assert.True(t, latestReport.ReportDate > report.ReportDate ||
+					latestReport.ReportDate == report.ReportDate,
 					"Latest report should have the most recent date")
 			}
 			t.Logf("Verified that returned report is indeed the latest among %d reports", len(allReports))
