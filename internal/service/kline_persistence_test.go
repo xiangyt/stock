@@ -2,17 +2,16 @@ package service
 
 import (
 	"os"
+	"stock/internal/logger"
 	"testing"
 	"time"
-
-	"stock/internal/config"
-	"stock/internal/database"
-	"stock/internal/model"
-	"stock/internal/utils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"stock/internal/config"
+	"stock/internal/database"
+	"stock/internal/model"
 )
 
 // setupTestDB 创建测试数据库连接
@@ -20,16 +19,16 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	// 切换到项目根目录
 	err := os.Chdir("../..")
 	require.NoError(t, err, "切换目录失败")
-	
+
 	// 加载配置
 	cfg, err := config.Load()
 	require.NoError(t, err, "加载配置失败")
 
 	// 初始化日志
-	logger := utils.NewLogger(cfg.Log)
+	logger.InitGlobalLogger(cfg.Log)
 
 	// 初始化数据库
-	dbManager, err := database.NewDatabase(&cfg.Database, logger)
+	dbManager, err := database.NewDatabase(&cfg.Database, logger.GetGlobalLogger())
 	require.NoError(t, err, "连接数据库失败")
 
 	db := dbManager.DB
@@ -49,8 +48,12 @@ func setupTestDB(t *testing.T) *gorm.DB {
 // TestKLinePersistenceService_DailyData 测试日K线数据持久化
 func TestKLinePersistenceService_DailyData(t *testing.T) {
 	db := setupTestDB(t)
-	logger := utils.NewLogger(config.LogConfig{Level: "info"})
-	service := NewKLinePersistenceService(db, logger)
+	// 加载配置
+	cfg, err := config.Load()
+	require.NoError(t, err, "加载配置失败")
+
+	logger.InitGlobalLogger(cfg.Log)
+	service := NewKLinePersistenceService(db, logger.GetGlobalLogger())
 
 	// 准备测试数据
 	testData := model.DailyData{
@@ -65,7 +68,7 @@ func TestKLinePersistenceService_DailyData(t *testing.T) {
 	}
 
 	// 测试保存数据
-	err := service.SaveDailyData(testData)
+	err = service.SaveDailyData(testData)
 	assert.NoError(t, err, "保存日K线数据应该成功")
 
 	// 测试批量保存
@@ -90,8 +93,7 @@ func TestKLinePersistenceService_DailyData(t *testing.T) {
 // TestKLinePersistenceService_WeeklyData 测试周K线数据持久化
 func TestKLinePersistenceService_WeeklyData(t *testing.T) {
 	db := setupTestDB(t)
-	logger := utils.NewLogger(config.LogConfig{Level: "info"})
-	service := NewKLinePersistenceService(db, logger)
+	service := NewKLinePersistenceService(db, logger.GetGlobalLogger())
 
 	// 准备测试数据
 	testData := model.WeeklyData{
@@ -131,8 +133,7 @@ func TestKLinePersistenceService_WeeklyData(t *testing.T) {
 // TestKLinePersistenceService_MonthlyData 测试月K线数据持久化
 func TestKLinePersistenceService_MonthlyData(t *testing.T) {
 	db := setupTestDB(t)
-	logger := utils.NewLogger(config.LogConfig{Level: "info"})
-	service := NewKLinePersistenceService(db, logger)
+	service := NewKLinePersistenceService(db, logger.GetGlobalLogger())
 
 	// 准备测试数据
 	testData := model.MonthlyData{
@@ -172,8 +173,7 @@ func TestKLinePersistenceService_MonthlyData(t *testing.T) {
 // TestKLinePersistenceService_YearlyData 测试年K线数据持久化
 func TestKLinePersistenceService_YearlyData(t *testing.T) {
 	db := setupTestDB(t)
-	logger := utils.NewLogger(config.LogConfig{Level: "info"})
-	service := NewKLinePersistenceService(db, logger)
+	service := NewKLinePersistenceService(db, logger.GetGlobalLogger())
 
 	// 准备测试数据
 	testData := model.YearlyData{
@@ -213,8 +213,7 @@ func TestKLinePersistenceService_YearlyData(t *testing.T) {
 // TestKLinePersistenceService_Integration 集成测试
 func TestKLinePersistenceService_Integration(t *testing.T) {
 	db := setupTestDB(t)
-	logger := utils.NewLogger(config.LogConfig{Level: "info"})
-	service := NewKLinePersistenceService(db, logger)
+	service := NewKLinePersistenceService(db, logger.GetGlobalLogger())
 
 	// 准备测试数据
 	tsCode := "600000.SH"

@@ -17,11 +17,11 @@ import (
 type DataService struct {
 	db               *gorm.DB
 	logger           *logger.Logger
-	stockRepo        *repository.StockRepository
-	dailyDataRepo    *repository.DailyDataRepository
-	weeklyDataRepo   *repository.WeeklyDataRepository
-	monthlyDataRepo  *repository.MonthlyDataRepository
-	yearlyDataRepo   *repository.YearlyDataRepository
+	stockRepo        *repository.Stock
+	dailyDataRepo    *repository.DailyData
+	weeklyDataRepo   *repository.WeeklyData
+	monthlyDataRepo  *repository.MonthlyData
+	yearlyDataRepo   *repository.YearlyData
 	collectorFactory *collector.CollectorFactory
 }
 
@@ -36,11 +36,11 @@ func GetDataService(db *gorm.DB, logger *logger.Logger) *DataService {
 		dataServiceInstance = &DataService{
 			db:               db,
 			logger:           logger,
-			stockRepo:        repository.NewStockRepository(db, logger),
-			dailyDataRepo:    repository.NewDailyDataRepository(db, logger),
-			weeklyDataRepo:   repository.NewWeeklyDataRepository(db, logger),
-			monthlyDataRepo:  repository.NewMonthlyDataRepository(db, logger),
-			yearlyDataRepo:   repository.NewYearlyDataRepository(db, logger),
+			stockRepo:        repository.NewStock(db),
+			dailyDataRepo:    repository.NewDailyData(db),
+			weeklyDataRepo:   repository.NewWeeklyData(db),
+			monthlyDataRepo:  repository.NewMonthlyData(db),
+			yearlyDataRepo:   repository.NewYearlyData(db),
 			collectorFactory: collector.GetCollectorFactory(logger),
 		}
 	})

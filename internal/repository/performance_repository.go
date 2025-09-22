@@ -9,25 +9,25 @@ import (
 	"gorm.io/gorm"
 )
 
-// PerformanceRepository 业绩报表数据仓库
-type PerformanceRepository struct {
+// Performance 业绩报表数据仓库
+type Performance struct {
 	db *gorm.DB
 }
 
-// NewPerformanceRepository 创建业绩报表仓库实例
-func NewPerformanceRepository(db *gorm.DB) *PerformanceRepository {
-	return &PerformanceRepository{
+// NewPerformance 创建业绩报表仓库实例
+func NewPerformance(db *gorm.DB) *Performance {
+	return &Performance{
 		db: db,
 	}
 }
 
 // Create 创建业绩报表记录
-func (r *PerformanceRepository) Create(report *model.PerformanceReport) error {
+func (r *Performance) Create(report *model.PerformanceReport) error {
 	return r.db.Create(report).Error
 }
 
 // CreateBatch 批量创建业绩报表记录
-func (r *PerformanceRepository) CreateBatch(reports []model.PerformanceReport) error {
+func (r *Performance) CreateBatch(reports []model.PerformanceReport) error {
 	if len(reports) == 0 {
 		return nil
 	}
@@ -35,7 +35,7 @@ func (r *PerformanceRepository) CreateBatch(reports []model.PerformanceReport) e
 }
 
 // GetByTsCode 根据股票代码获取业绩报表
-func (r *PerformanceRepository) GetByTsCode(tsCode string) ([]model.PerformanceReport, error) {
+func (r *Performance) GetByTsCode(tsCode string) ([]model.PerformanceReport, error) {
 	var reports []model.PerformanceReport
 	err := r.db.Where("ts_code = ?", tsCode).
 		Order("report_date DESC").
@@ -44,7 +44,7 @@ func (r *PerformanceRepository) GetByTsCode(tsCode string) ([]model.PerformanceR
 }
 
 // GetLatestByTsCode 获取指定股票的最新业绩报表
-func (r *PerformanceRepository) GetLatestByTsCode(tsCode string) (*model.PerformanceReport, error) {
+func (r *Performance) GetLatestByTsCode(tsCode string) (*model.PerformanceReport, error) {
 	var report model.PerformanceReport
 	err := r.db.Where("ts_code = ?", tsCode).
 		Order("report_date DESC").
@@ -56,7 +56,7 @@ func (r *PerformanceRepository) GetLatestByTsCode(tsCode string) (*model.Perform
 }
 
 // GetByTsCodeAndDateRange 根据股票代码和日期范围获取业绩报表
-func (r *PerformanceRepository) GetByTsCodeAndDateRange(tsCode string, startDate, endDate time.Time) ([]model.PerformanceReport, error) {
+func (r *Performance) GetByTsCodeAndDateRange(tsCode string, startDate, endDate time.Time) ([]model.PerformanceReport, error) {
 	var reports []model.PerformanceReport
 	err := r.db.Where("ts_code = ? AND report_date BETWEEN ? AND ?", tsCode, startDate, endDate).
 		Order("report_date DESC").
@@ -65,7 +65,7 @@ func (r *PerformanceRepository) GetByTsCodeAndDateRange(tsCode string, startDate
 }
 
 // GetByReportDate 根据报告日期获取所有股票的业绩报表
-func (r *PerformanceRepository) GetByReportDate(reportDate time.Time) ([]model.PerformanceReport, error) {
+func (r *Performance) GetByReportDate(reportDate time.Time) ([]model.PerformanceReport, error) {
 	var reports []model.PerformanceReport
 	err := r.db.Where("report_date = ?", reportDate).
 		Find(&reports).Error
@@ -73,22 +73,22 @@ func (r *PerformanceRepository) GetByReportDate(reportDate time.Time) ([]model.P
 }
 
 // Update 更新业绩报表记录
-func (r *PerformanceRepository) Update(report *model.PerformanceReport) error {
+func (r *Performance) Update(report *model.PerformanceReport) error {
 	return r.db.Save(report).Error
 }
 
 // Delete 删除业绩报表记录
-func (r *PerformanceRepository) Delete(id uint) error {
+func (r *Performance) Delete(id uint) error {
 	return r.db.Delete(&model.PerformanceReport{}, id).Error
 }
 
 // DeleteByTsCode 删除指定股票的所有业绩报表
-func (r *PerformanceRepository) DeleteByTsCode(tsCode string) error {
+func (r *Performance) DeleteByTsCode(tsCode string) error {
 	return r.db.Where("ts_code = ?", tsCode).Delete(&model.PerformanceReport{}).Error
 }
 
 // Exists 检查业绩报表是否存在
-func (r *PerformanceRepository) Exists(tsCode string, reportDate int) (bool, error) {
+func (r *Performance) Exists(tsCode string, reportDate int) (bool, error) {
 	var count int64
 	err := r.db.Model(&model.PerformanceReport{}).
 		Where("ts_code = ? AND report_date = ?", tsCode, reportDate).
@@ -97,7 +97,7 @@ func (r *PerformanceRepository) Exists(tsCode string, reportDate int) (bool, err
 }
 
 // UpsertBatch 批量插入或更新业绩报表（如果存在则更新，不存在则插入）
-func (r *PerformanceRepository) UpsertBatch(reports []model.PerformanceReport) error {
+func (r *Performance) UpsertBatch(reports []model.PerformanceReport) error {
 	if len(reports) == 0 {
 		return nil
 	}
@@ -131,7 +131,7 @@ func (r *PerformanceRepository) UpsertBatch(reports []model.PerformanceReport) e
 }
 
 // GetStatistics 获取业绩报表统计信息
-func (r *PerformanceRepository) GetStatistics() (map[string]interface{}, error) {
+func (r *Performance) GetStatistics() (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
 
 	// 总记录数
@@ -172,7 +172,7 @@ func (r *PerformanceRepository) GetStatistics() (map[string]interface{}, error) 
 }
 
 // GetTopPerformers 获取业绩表现最好的股票
-func (r *PerformanceRepository) GetTopPerformers(limit int, orderBy string) ([]model.PerformanceReport, error) {
+func (r *Performance) GetTopPerformers(limit int, orderBy string) ([]model.PerformanceReport, error) {
 	var reports []model.PerformanceReport
 
 	// 验证排序字段

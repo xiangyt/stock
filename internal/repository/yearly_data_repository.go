@@ -10,33 +10,31 @@ import (
 	"gorm.io/gorm"
 )
 
-// YearlyDataRepository 年K线数据仓库
-type YearlyDataRepository struct {
-	db     *gorm.DB
-	logger *logger.Logger
+// YearlyData 年K线数据仓库
+type YearlyData struct {
+	db *gorm.DB
 }
 
-// NewYearlyDataRepository 创建年K线数据仓库
-func NewYearlyDataRepository(db *gorm.DB, logger *logger.Logger) *YearlyDataRepository {
-	return &YearlyDataRepository{
-		db:     db,
-		logger: logger,
+// NewYearlyData 创建年K线数据仓库
+func NewYearlyData(db *gorm.DB) *YearlyData {
+	return &YearlyData{
+		db: db,
 	}
 }
 
 // Create 创建年K线数据
-func (r *YearlyDataRepository) Create(data *model.YearlyData) error {
+func (r *YearlyData) Create(data *model.YearlyData) error {
 	data.CreatedAt = time.Now().Unix()
 	if err := r.db.Create(data).Error; err != nil {
-		r.logger.Errorf("Failed to create yearly data: %v", err)
+		logger.Errorf("Failed to create yearly data: %v", err)
 		return err
 	}
-	r.logger.Debugf("Created yearly data: %s %d", data.TsCode, data.TradeDate)
+	logger.Debugf("Created yearly data: %s %d", data.TsCode, data.TradeDate)
 	return nil
 }
 
 // BatchCreate 批量创建年K线数据
-func (r *YearlyDataRepository) BatchCreate(dataList []model.YearlyData) error {
+func (r *YearlyData) BatchCreate(dataList []model.YearlyData) error {
 	if len(dataList) == 0 {
 		return nil
 	}
@@ -47,16 +45,16 @@ func (r *YearlyDataRepository) BatchCreate(dataList []model.YearlyData) error {
 	}
 
 	if err := r.db.CreateInBatches(dataList, 100).Error; err != nil {
-		r.logger.Errorf("Failed to batch create yearly data: %v", err)
+		logger.Errorf("Failed to batch create yearly data: %v", err)
 		return err
 	}
 
-	r.logger.Debugf("Batch created %d yearly data records", len(dataList))
+	logger.Debugf("Batch created %d yearly data records", len(dataList))
 	return nil
 }
 
 // Upsert 更新或插入年K线数据
-func (r *YearlyDataRepository) Upsert(data *model.YearlyData) error {
+func (r *YearlyData) Upsert(data *model.YearlyData) error {
 	now := time.Now().Unix()
 	data.UpdatedAt = now
 
@@ -74,18 +72,18 @@ func (r *YearlyDataRepository) Upsert(data *model.YearlyData) error {
 		FirstOrCreate(data)
 
 	if result.Error != nil {
-		r.logger.Errorf("Failed to upsert yearly data: %v", result.Error)
+		logger.Errorf("Failed to upsert yearly data: %v", result.Error)
 		return result.Error
 	}
 
 	if result.RowsAffected > 0 {
-		r.logger.Debugf("Upserted yearly data: %s %d", data.TsCode, data.TradeDate)
+		logger.Debugf("Upserted yearly data: %s %d", data.TsCode, data.TradeDate)
 	}
 	return nil
 }
 
 // BatchUpsert 批量更新或插入年K线数据
-func (r *YearlyDataRepository) BatchUpsert(dataList []model.YearlyData) error {
+func (r *YearlyData) BatchUpsert(dataList []model.YearlyData) error {
 	if len(dataList) == 0 {
 		return nil
 	}
@@ -109,28 +107,28 @@ func (r *YearlyDataRepository) BatchUpsert(dataList []model.YearlyData) error {
 				FirstOrCreate(&dataList[i])
 
 			if result.Error != nil {
-				r.logger.Errorf("Failed to upsert yearly data in batch: %v", result.Error)
+				logger.Errorf("Failed to upsert yearly data in batch: %v", result.Error)
 				return result.Error
 			}
 		}
 
-		r.logger.Debugf("Batch upserted %d yearly data records", len(dataList))
+		logger.Debugf("Batch upserted %d yearly data records", len(dataList))
 		return nil
 	})
 }
 
 // Update 更新年K线数据
-func (r *YearlyDataRepository) Update(data *model.YearlyData) error {
+func (r *YearlyData) Update(data *model.YearlyData) error {
 	if err := r.db.Save(data).Error; err != nil {
-		r.logger.Errorf("Failed to update yearly data: %v", err)
+		logger.Errorf("Failed to update yearly data: %v", err)
 		return err
 	}
-	r.logger.Debugf("Updated yearly data: %s %d", data.TsCode, data.TradeDate)
+	logger.Debugf("Updated yearly data: %s %d", data.TsCode, data.TradeDate)
 	return nil
 }
 
 // GetYearlyDataByTsCode 根据股票代码获取年K线数据
-func (r *YearlyDataRepository) GetYearlyDataByTsCode(tsCode string, startDate, endDate time.Time, limit int) ([]model.YearlyData, error) {
+func (r *YearlyData) GetYearlyDataByTsCode(tsCode string, startDate, endDate time.Time, limit int) ([]model.YearlyData, error) {
 	var dataList []model.YearlyData
 	query := r.db.Where("ts_code = ?", tsCode)
 
@@ -151,7 +149,7 @@ func (r *YearlyDataRepository) GetYearlyDataByTsCode(tsCode string, startDate, e
 	}
 
 	if err := query.Find(&dataList).Error; err != nil {
-		r.logger.Errorf("Failed to get yearly data: %v", err)
+		logger.Errorf("Failed to get yearly data: %v", err)
 		return nil, err
 	}
 
@@ -159,49 +157,49 @@ func (r *YearlyDataRepository) GetYearlyDataByTsCode(tsCode string, startDate, e
 }
 
 // GetLatestYearlyData 获取最新的年K线数据
-func (r *YearlyDataRepository) GetLatestYearlyData(tsCode string) (*model.YearlyData, error) {
+func (r *YearlyData) GetLatestYearlyData(tsCode string) (*model.YearlyData, error) {
 	var data model.YearlyData
 	if err := r.db.Where("ts_code = ?", tsCode).Order("trade_date DESC").First(&data).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		r.logger.Errorf("Failed to get latest yearly data: %v", err)
+		logger.Errorf("Failed to get latest yearly data: %v", err)
 		return nil, err
 	}
 	return &data, nil
 }
 
 // DeleteYearlyData 删除年K线数据
-func (r *YearlyDataRepository) DeleteYearlyData(tsCode string, tradeDate time.Time) error {
+func (r *YearlyData) DeleteYearlyData(tsCode string, tradeDate time.Time) error {
 	db := r.db.Where("ts_code = ?", tsCode)
 	if !tradeDate.IsZero() {
 		tradeDateInt := tradeDate.Year()*10000 + int(tradeDate.Month())*100 + tradeDate.Day()
 		db = db.Where("trade_date = ?", tradeDateInt)
 	}
 	if err := db.Delete(&model.YearlyData{}).Error; err != nil {
-		r.logger.Errorf("Failed to delete yearly data: %v", err)
+		logger.Errorf("Failed to delete yearly data: %v", err)
 		return err
 	}
-	r.logger.Debugf("Deleted yearly data: %s %s", tsCode, tradeDate.Format("2006-01-02"))
+	logger.Debugf("Deleted yearly data: %s %s", tsCode, tradeDate.Format("2006-01-02"))
 	return nil
 }
 
 // GetYearlyDataCount 获取年K线数据总数
-func (r *YearlyDataRepository) GetYearlyDataCount(tsCode string) (int64, error) {
+func (r *YearlyData) GetYearlyDataCount(tsCode string) (int64, error) {
 	var count int64
 	query := r.db.Model(&model.YearlyData{})
 	if tsCode != "" {
 		query = query.Where("ts_code = ?", tsCode)
 	}
 	if err := query.Count(&count).Error; err != nil {
-		r.logger.Errorf("Failed to get yearly data count: %v", err)
+		logger.Errorf("Failed to get yearly data count: %v", err)
 		return 0, err
 	}
 	return count, nil
 }
 
 // GetDateRange 获取数据的日期范围
-func (r *YearlyDataRepository) GetDateRange(tsCode string) (startDate, endDate time.Time, err error) {
+func (r *YearlyData) GetDateRange(tsCode string) (startDate, endDate time.Time, err error) {
 	var startDateInt, endDateInt int
 	query := r.db.Model(&model.YearlyData{})
 	if tsCode != "" {
@@ -209,12 +207,12 @@ func (r *YearlyDataRepository) GetDateRange(tsCode string) (startDate, endDate t
 	}
 
 	if err = query.Select("MIN(trade_date)").Scan(&startDateInt).Error; err != nil {
-		r.logger.Errorf("Failed to get min trade date: %v", err)
+		logger.Errorf("Failed to get min trade date: %v", err)
 		return
 	}
 
 	if err = query.Select("MAX(trade_date)").Scan(&endDateInt).Error; err != nil {
-		r.logger.Errorf("Failed to get max trade date: %v", err)
+		logger.Errorf("Failed to get max trade date: %v", err)
 		return
 	}
 
@@ -224,7 +222,7 @@ func (r *YearlyDataRepository) GetDateRange(tsCode string) (startDate, endDate t
 }
 
 // intToDate 将YYYYMMDD格式的int转换为time.Time
-func (r *YearlyDataRepository) intToDate(dateInt int) time.Time {
+func (r *YearlyData) intToDate(dateInt int) time.Time {
 	year := dateInt / 10000
 	month := (dateInt % 10000) / 100
 	day := dateInt % 100

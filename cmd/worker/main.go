@@ -71,6 +71,7 @@ func main() {
 	logger.Info("Worker exited")
 }
 
+const maxConcurrent = 2 // 最大并发量
 func setupCronJobs(c *cron.Cron, services *service.Services) {
 	// 每天早上8点执行主要任务
 	c.AddFunc("0 0 8 * * *", func() {
@@ -117,22 +118,6 @@ func setupCronJobs(c *cron.Cron, services *service.Services) {
 	logger.Info("定时任务配置完成！")
 }
 
-// executeNightlyTasks 执行每日晚上10点的主要任务
-func executeNightlyTasks(services *service.Services) {
-	// 日K线数据采集 - 第一优先级
-	_ = collectAndPersistDailyKLineData(services)
-	// 周K线数据采集 - 第二优先级
-	_ = collectAndPersistWeeklyKLineData(services)
-	// 月K线数据采集 - 第三优先级
-	_ = collectAndPersistMonthlyKLineData(services)
-	// 年K线数据采集 - 第四优先级
-	_ = collectAndPersistYearlyKLineData(services)
-	// 业绩报表数据采集 - 第五优先级
-	_ = collectAndPersistPerformanceReports(services)
-	// 股东人数数据采集 - 第六优先级
-	_ = collectAndPersistShareholderCounts(services)
-}
-
 // initServicesWithDB 初始化带数据库连接的服务
 func initServicesWithDB(cfg *config.Config, db *gorm.DB) (*service.Services, error) {
 	logger.Info("初始化服务...")
@@ -147,13 +132,13 @@ func initServicesWithDB(cfg *config.Config, db *gorm.DB) (*service.Services, err
 	services.DataService = service.GetDataService(db, logger.GetGlobalLogger())
 
 	// 为PerformanceService创建必要的依赖
-	performanceRepo := repository.NewPerformanceRepository(db)
-	stockRepo := repository.NewStockRepository(db, logger.GetGlobalLogger())
+	performanceRepo := repository.NewPerformance(db)
+	stockRepo := repository.NewStock(db)
 	eastMoneyCollector := collector.GetCollectorFactory(logger.GetGlobalLogger()).GetEastMoneyCollector()
-	services.PerformanceService = service.NewPerformanceService(performanceRepo, stockRepo, eastMoneyCollector, logger.GetGlobalLogger())
+	services.PerformanceService = service.NewPerformanceService(performanceRepo, stockRepo, eastMoneyCollector)
 
 	// 为ShareholderService创建必要的依赖
-	shareholderRepo := repository.NewShareholderRepository(db)
+	shareholderRepo := repository.NewShareholder(db)
 	services.ShareholderService = service.NewShareholderService(shareholderRepo, eastMoneyCollector)
 
 	logger.Info("所有服务初始化完成")
@@ -183,7 +168,7 @@ func collectStockBasicInfo(services *service.Services) error {
 func collectAndPersistDailyKLineData(services *service.Services) error {
 	logger.Info("开始采集日K线数据...")
 
-	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(maxConcurrent, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -235,7 +220,7 @@ func collectAndPersistDailyKLineData(services *service.Services) error {
 // collectAndPersistWeeklyKLineData 采集并保存周K线数据
 func collectAndPersistWeeklyKLineData(services *service.Services) error {
 	logger.Info("开始采集周K线数据...")
-	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(maxConcurrent, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -284,7 +269,7 @@ func collectAndPersistWeeklyKLineData(services *service.Services) error {
 // collectAndPersistMonthlyKLineData 采集并保存月K线数据
 func collectAndPersistMonthlyKLineData(services *service.Services) error {
 	logger.Info("开始采集月K线数据...")
-	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(maxConcurrent, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 	stocks, err := services.DataService.GetAllStocks()
@@ -327,7 +312,7 @@ func collectAndPersistMonthlyKLineData(services *service.Services) error {
 // collectAndPersistYearlyKLineData 采集并保存年K线数据
 func collectAndPersistYearlyKLineData(services *service.Services) error {
 	logger.Info("开始采集年K线数据...")
-	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(maxConcurrent, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 	stocks, err := services.DataService.GetAllStocks()
@@ -616,7 +601,7 @@ func syncStockYearlyKLine(services *service.Services, stock *model.Stock) error 
 // collectAndPersistPerformanceReports 采集并保存业绩报表数据
 func collectAndPersistPerformanceReports(services *service.Services) error {
 	logger.Info("开始采集业绩报表数据...")
-	executor := utils.NewConcurrentExecutor(1, 30*time.Minute) // 最大100个并发，30分钟超时
+	executor := utils.NewConcurrentExecutor(maxConcurrent, 30*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 

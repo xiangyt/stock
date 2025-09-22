@@ -10,33 +10,31 @@ import (
 	"gorm.io/gorm"
 )
 
-// MonthlyDataRepository 月K线数据仓库
-type MonthlyDataRepository struct {
-	db     *gorm.DB
-	logger *logger.Logger
+// MonthlyData 月K线数据仓库
+type MonthlyData struct {
+	db *gorm.DB
 }
 
-// NewMonthlyDataRepository 创建月K线数据仓库
-func NewMonthlyDataRepository(db *gorm.DB, logger *logger.Logger) *MonthlyDataRepository {
-	return &MonthlyDataRepository{
-		db:     db,
-		logger: logger,
+// NewMonthlyData 创建月K线数据仓库
+func NewMonthlyData(db *gorm.DB) *MonthlyData {
+	return &MonthlyData{
+		db: db,
 	}
 }
 
 // Create 创建月K线数据
-func (r *MonthlyDataRepository) Create(data *model.MonthlyData) error {
+func (r *MonthlyData) Create(data *model.MonthlyData) error {
 	data.CreatedAt = time.Now().Unix()
 	if err := r.db.Create(data).Error; err != nil {
-		r.logger.Errorf("Failed to create monthly data: %v", err)
+		logger.Errorf("Failed to create monthly data: %v", err)
 		return err
 	}
-	r.logger.Debugf("Created monthly data: %s %d", data.TsCode, data.TradeDate)
+	logger.Debugf("Created monthly data: %s %d", data.TsCode, data.TradeDate)
 	return nil
 }
 
 // BatchCreate 批量创建月K线数据
-func (r *MonthlyDataRepository) BatchCreate(dataList []model.MonthlyData) error {
+func (r *MonthlyData) BatchCreate(dataList []model.MonthlyData) error {
 	if len(dataList) == 0 {
 		return nil
 	}
@@ -47,16 +45,16 @@ func (r *MonthlyDataRepository) BatchCreate(dataList []model.MonthlyData) error 
 	}
 
 	if err := r.db.CreateInBatches(dataList, 100).Error; err != nil {
-		r.logger.Errorf("Failed to batch create monthly data: %v", err)
+		logger.Errorf("Failed to batch create monthly data: %v", err)
 		return err
 	}
 
-	r.logger.Debugf("Batch created %d monthly data records", len(dataList))
+	logger.Debugf("Batch created %d monthly data records", len(dataList))
 	return nil
 }
 
 // Upsert 更新或插入月K线数据
-func (r *MonthlyDataRepository) Upsert(data *model.MonthlyData) error {
+func (r *MonthlyData) Upsert(data *model.MonthlyData) error {
 	now := time.Now().Unix()
 	data.UpdatedAt = now
 
@@ -74,18 +72,18 @@ func (r *MonthlyDataRepository) Upsert(data *model.MonthlyData) error {
 		FirstOrCreate(data)
 
 	if result.Error != nil {
-		r.logger.Errorf("Failed to upsert monthly data: %v", result.Error)
+		logger.Errorf("Failed to upsert monthly data: %v", result.Error)
 		return result.Error
 	}
 
 	if result.RowsAffected > 0 {
-		r.logger.Debugf("Upserted monthly data: %s %d", data.TsCode, data.TradeDate)
+		logger.Debugf("Upserted monthly data: %s %d", data.TsCode, data.TradeDate)
 	}
 	return nil
 }
 
 // BatchUpsert 批量更新或插入月K线数据
-func (r *MonthlyDataRepository) BatchUpsert(dataList []model.MonthlyData) error {
+func (r *MonthlyData) BatchUpsert(dataList []model.MonthlyData) error {
 	if len(dataList) == 0 {
 		return nil
 	}
@@ -109,28 +107,28 @@ func (r *MonthlyDataRepository) BatchUpsert(dataList []model.MonthlyData) error 
 				FirstOrCreate(&dataList[i])
 
 			if result.Error != nil {
-				r.logger.Errorf("Failed to upsert monthly data in batch: %v", result.Error)
+				logger.Errorf("Failed to upsert monthly data in batch: %v", result.Error)
 				return result.Error
 			}
 		}
 
-		r.logger.Debugf("Batch upserted %d monthly data records", len(dataList))
+		logger.Debugf("Batch upserted %d monthly data records", len(dataList))
 		return nil
 	})
 }
 
 // Update 更新月K线数据
-func (r *MonthlyDataRepository) Update(data *model.MonthlyData) error {
+func (r *MonthlyData) Update(data *model.MonthlyData) error {
 	if err := r.db.Save(data).Error; err != nil {
-		r.logger.Errorf("Failed to update monthly data: %v", err)
+		logger.Errorf("Failed to update monthly data: %v", err)
 		return err
 	}
-	r.logger.Debugf("Updated monthly data: %s %d", data.TsCode, data.TradeDate)
+	logger.Debugf("Updated monthly data: %s %d", data.TsCode, data.TradeDate)
 	return nil
 }
 
 // GetMonthlyDataByTsCode 根据股票代码获取月K线数据
-func (r *MonthlyDataRepository) GetMonthlyDataByTsCode(tsCode string, startDate, endDate time.Time, limit int) ([]model.MonthlyData, error) {
+func (r *MonthlyData) GetMonthlyDataByTsCode(tsCode string, startDate, endDate time.Time, limit int) ([]model.MonthlyData, error) {
 	var dataList []model.MonthlyData
 	query := r.db.Where("ts_code = ?", tsCode)
 
@@ -151,7 +149,7 @@ func (r *MonthlyDataRepository) GetMonthlyDataByTsCode(tsCode string, startDate,
 	}
 
 	if err := query.Find(&dataList).Error; err != nil {
-		r.logger.Errorf("Failed to get monthly data: %v", err)
+		logger.Errorf("Failed to get monthly data: %v", err)
 		return nil, err
 	}
 
@@ -159,49 +157,49 @@ func (r *MonthlyDataRepository) GetMonthlyDataByTsCode(tsCode string, startDate,
 }
 
 // GetLatestMonthlyData 获取最新的月K线数据
-func (r *MonthlyDataRepository) GetLatestMonthlyData(tsCode string) (*model.MonthlyData, error) {
+func (r *MonthlyData) GetLatestMonthlyData(tsCode string) (*model.MonthlyData, error) {
 	var data model.MonthlyData
 	if err := r.db.Where("ts_code = ?", tsCode).Order("trade_date DESC").First(&data).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		r.logger.Errorf("Failed to get latest monthly data: %v", err)
+		logger.Errorf("Failed to get latest monthly data: %v", err)
 		return nil, err
 	}
 	return &data, nil
 }
 
 // DeleteMonthlyData 删除月K线数据
-func (r *MonthlyDataRepository) DeleteMonthlyData(tsCode string, tradeDate time.Time) error {
+func (r *MonthlyData) DeleteMonthlyData(tsCode string, tradeDate time.Time) error {
 	db := r.db.Where("ts_code = ? ", tsCode)
 	if !tradeDate.IsZero() {
 		tradeDateInt := tradeDate.Year()*10000 + int(tradeDate.Month())*100 + tradeDate.Day()
 		db = db.Where("trade_date = ?", tradeDateInt)
 	}
 	if err := db.Delete(&model.MonthlyData{}).Error; err != nil {
-		r.logger.Errorf("Failed to delete monthly data: %v", err)
+		logger.Errorf("Failed to delete monthly data: %v", err)
 		return err
 	}
-	r.logger.Debugf("Deleted monthly data: %s %s", tsCode, tradeDate.Format("2006-01-02"))
+	logger.Debugf("Deleted monthly data: %s %s", tsCode, tradeDate.Format("2006-01-02"))
 	return nil
 }
 
 // GetMonthlyDataCount 获取月K线数据总数
-func (r *MonthlyDataRepository) GetMonthlyDataCount(tsCode string) (int64, error) {
+func (r *MonthlyData) GetMonthlyDataCount(tsCode string) (int64, error) {
 	var count int64
 	query := r.db.Model(&model.MonthlyData{})
 	if tsCode != "" {
 		query = query.Where("ts_code = ?", tsCode)
 	}
 	if err := query.Count(&count).Error; err != nil {
-		r.logger.Errorf("Failed to get monthly data count: %v", err)
+		logger.Errorf("Failed to get monthly data count: %v", err)
 		return 0, err
 	}
 	return count, nil
 }
 
 // GetDateRange 获取数据的日期范围
-func (r *MonthlyDataRepository) GetDateRange(tsCode string) (startDate, endDate time.Time, err error) {
+func (r *MonthlyData) GetDateRange(tsCode string) (startDate, endDate time.Time, err error) {
 	var startDateInt, endDateInt int
 	query := r.db.Model(&model.MonthlyData{})
 	if tsCode != "" {
@@ -209,12 +207,12 @@ func (r *MonthlyDataRepository) GetDateRange(tsCode string) (startDate, endDate 
 	}
 
 	if err = query.Select("MIN(trade_date)").Scan(&startDateInt).Error; err != nil {
-		r.logger.Errorf("Failed to get min trade date: %v", err)
+		logger.Errorf("Failed to get min trade date: %v", err)
 		return
 	}
 
 	if err = query.Select("MAX(trade_date)").Scan(&endDateInt).Error; err != nil {
-		r.logger.Errorf("Failed to get max trade date: %v", err)
+		logger.Errorf("Failed to get max trade date: %v", err)
 		return
 	}
 
@@ -224,7 +222,7 @@ func (r *MonthlyDataRepository) GetDateRange(tsCode string) (startDate, endDate 
 }
 
 // intToDate 将YYYYMMDD格式的int转换为time.Time
-func (r *MonthlyDataRepository) intToDate(dateInt int) time.Time {
+func (r *MonthlyData) intToDate(dateInt int) time.Time {
 	year := dateInt / 10000
 	month := (dateInt % 10000) / 100
 	day := dateInt % 100

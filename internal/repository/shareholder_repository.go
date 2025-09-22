@@ -8,25 +8,25 @@ import (
 	"gorm.io/gorm"
 )
 
-// ShareholderRepository 股东户数数据仓库
-type ShareholderRepository struct {
+// Shareholder 股东户数数据仓库
+type Shareholder struct {
 	db *gorm.DB
 }
 
-// NewShareholderRepository 创建股东户数仓库实例
-func NewShareholderRepository(db *gorm.DB) *ShareholderRepository {
-	return &ShareholderRepository{
+// NewShareholder 创建股东户数仓库实例
+func NewShareholder(db *gorm.DB) *Shareholder {
+	return &Shareholder{
 		db: db,
 	}
 }
 
 // Create 创建股东户数记录
-func (r *ShareholderRepository) Create(count *model.ShareholderCount) error {
+func (r *Shareholder) Create(count *model.ShareholderCount) error {
 	return r.db.Create(count).Error
 }
 
 // GetByTsCode 根据股票代码获取股东户数记录
-func (r *ShareholderRepository) GetByTsCode(tsCode string) ([]*model.ShareholderCount, error) {
+func (r *Shareholder) GetByTsCode(tsCode string) ([]*model.ShareholderCount, error) {
 	var counts []*model.ShareholderCount
 	err := r.db.Where("ts_code = ?", tsCode).
 		Order("end_date DESC").
@@ -35,7 +35,7 @@ func (r *ShareholderRepository) GetByTsCode(tsCode string) ([]*model.Shareholder
 }
 
 // GetLatest 获取最新的股东户数记录
-func (r *ShareholderRepository) GetLatest(tsCode string) (*model.ShareholderCount, error) {
+func (r *Shareholder) GetLatest(tsCode string) (*model.ShareholderCount, error) {
 	var count model.ShareholderCount
 	err := r.db.Where("ts_code = ?", tsCode).
 		Order("end_date DESC").
@@ -47,7 +47,7 @@ func (r *ShareholderRepository) GetLatest(tsCode string) (*model.ShareholderCoun
 }
 
 // UpsertBatch 批量插入或更新股东户数记录
-func (r *ShareholderRepository) UpsertBatch(counts []*model.ShareholderCount) error {
+func (r *Shareholder) UpsertBatch(counts []*model.ShareholderCount) error {
 	if len(counts) == 0 {
 		return nil
 	}

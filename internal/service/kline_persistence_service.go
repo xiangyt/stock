@@ -15,10 +15,10 @@ import (
 type KLinePersistenceService struct {
 	db            *gorm.DB
 	logger        *logger.Logger
-	dailyDataRepo *repository.DailyDataRepository
-	weeklyRepo    *repository.WeeklyDataRepository
-	monthlyRepo   *repository.MonthlyDataRepository
-	yearlyRepo    *repository.YearlyDataRepository
+	dailyDataRepo *repository.DailyData
+	weeklyRepo    *repository.WeeklyData
+	monthlyRepo   *repository.MonthlyData
+	yearlyRepo    *repository.YearlyData
 }
 
 var (
@@ -32,10 +32,10 @@ func GetKLinePersistenceService(db *gorm.DB, logger *logger.Logger) *KLinePersis
 		klinePersistenceServiceInstance = &KLinePersistenceService{
 			db:            db,
 			logger:        logger,
-			dailyDataRepo: repository.NewDailyDataRepository(db, logger),
-			weeklyRepo:    repository.NewWeeklyDataRepository(db, logger),
-			monthlyRepo:   repository.NewMonthlyDataRepository(db, logger),
-			yearlyRepo:    repository.NewYearlyDataRepository(db, logger),
+			dailyDataRepo: repository.NewDailyData(db),
+			weeklyRepo:    repository.NewWeeklyData(db),
+			monthlyRepo:   repository.NewMonthlyData(db),
+			yearlyRepo:    repository.NewYearlyData(db),
 		}
 	})
 	return klinePersistenceServiceInstance

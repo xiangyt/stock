@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"stock/internal/collector"
-	"stock/internal/logger"
 	"stock/internal/model"
 	"stock/internal/repository"
 
@@ -19,7 +18,7 @@ type KLineService struct {
 	db               *gorm.DB
 	logger           *logrus.Logger
 	collectorManager *collector.CollectorManager
-	dailyDataRepo    *repository.DailyDataRepository
+	dailyDataRepo    *repository.DailyData
 }
 
 var (
@@ -30,12 +29,11 @@ var (
 // GetKLineService 获取K线数据服务单例
 func GetKLineService(db *gorm.DB, log *logrus.Logger, collectorManager *collector.CollectorManager) *KLineService {
 	klineServiceOnce.Do(func() {
-		utilsLogger := logger.GetGlobalLogger()
 		klineServiceInstance = &KLineService{
 			db:               db,
 			logger:           log,
 			collectorManager: collectorManager,
-			dailyDataRepo:    repository.NewDailyDataRepository(db, utilsLogger),
+			dailyDataRepo:    repository.NewDailyData(db),
 		}
 	})
 	return klineServiceInstance

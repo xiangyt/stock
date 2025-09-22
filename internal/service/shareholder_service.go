@@ -13,7 +13,7 @@ import (
 
 // ShareholderService 股东户数服务
 type ShareholderService struct {
-	repo      *repository.ShareholderRepository
+	repo      *repository.Shareholder
 	collector collector.DataCollector
 }
 
@@ -114,7 +114,7 @@ var (
 )
 
 // GetShareholderService 获取股东户数服务单例
-func GetShareholderService(repo *repository.ShareholderRepository, collector collector.DataCollector) *ShareholderService {
+func GetShareholderService(repo *repository.Shareholder, collector collector.DataCollector) *ShareholderService {
 	shareholderServiceOnce.Do(func() {
 		shareholderServiceInstance = &ShareholderService{
 			repo:      repo,
@@ -125,7 +125,7 @@ func GetShareholderService(repo *repository.ShareholderRepository, collector col
 }
 
 // NewShareholderService 创建股东户数服务实例 (保持向后兼容)
-func NewShareholderService(repo *repository.ShareholderRepository, collector collector.DataCollector) *ShareholderService {
+func NewShareholderService(repo *repository.Shareholder, collector collector.DataCollector) *ShareholderService {
 	return GetShareholderService(repo, collector)
 }
 

@@ -12,22 +12,20 @@ import (
 	"gorm.io/gorm"
 )
 
-// DailyDataRepository 日线数据仓库
-type DailyDataRepository struct {
-	db     *gorm.DB
-	logger *logger.Logger
+// DailyData 日线数据仓库
+type DailyData struct {
+	db *gorm.DB
 }
 
-// NewDailyDataRepository 创建日线数据仓库
-func NewDailyDataRepository(db *gorm.DB, logger *logger.Logger) *DailyDataRepository {
-	return &DailyDataRepository{
-		db:     db,
-		logger: logger,
+// NewDailyData 创建日线数据仓库
+func NewDailyData(db *gorm.DB) *DailyData {
+	return &DailyData{
+		db: db,
 	}
 }
 
 // getExchange 根据股票代码获取交易所类型
-func (r *DailyDataRepository) getExchange(tsCode string) string {
+func (r *DailyData) getExchange(tsCode string) string {
 	if strings.HasSuffix(tsCode, ".SH") {
 		return "SH"
 	} else if strings.HasSuffix(tsCode, ".SZ") {
@@ -43,7 +41,7 @@ func (r *DailyDataRepository) getExchange(tsCode string) string {
 }
 
 // SaveDailyData 保存日K线数据到对应的交易所表
-func (r *DailyDataRepository) SaveDailyData(data []model.DailyData) error {
+func (r *DailyData) SaveDailyData(data []model.DailyData) error {
 	if len(data) == 0 {
 		return nil
 	}
@@ -66,21 +64,21 @@ func (r *DailyDataRepository) SaveDailyData(data []model.DailyData) error {
 		if err := r.db.Table("daily_data_sh").CreateInBatches(shData, 1000).Error; err != nil {
 			return fmt.Errorf("failed to save SH daily data: %w", err)
 		}
-		r.logger.Infof("Saved %d SH daily data records", len(shData))
+		logger.Infof("Saved %d SH daily data records", len(shData))
 	}
 
 	if len(szData) > 0 {
 		if err := r.db.Table("daily_data_sz").CreateInBatches(szData, 1000).Error; err != nil {
 			return fmt.Errorf("failed to save SZ daily data: %w", err)
 		}
-		r.logger.Infof("Saved %d SZ daily data records", len(szData))
+		logger.Infof("Saved %d SZ daily data records", len(szData))
 	}
 
 	return nil
 }
 
 // UpsertDailyData 更新或插入日K线数据到对应的交易所表
-func (r *DailyDataRepository) UpsertDailyData(data []model.DailyData) error {
+func (r *DailyData) UpsertDailyData(data []model.DailyData) error {
 	if len(data) == 0 {
 		return nil
 	}
@@ -105,7 +103,7 @@ func (r *DailyDataRepository) UpsertDailyData(data []model.DailyData) error {
 				return fmt.Errorf("failed to upsert SH daily data: %w", err)
 			}
 		}
-		r.logger.Infof("Upserted %d SH daily data records", len(shData))
+		logger.Infof("Upserted %d SH daily data records", len(shData))
 	}
 
 	if len(szData) > 0 {
@@ -114,14 +112,14 @@ func (r *DailyDataRepository) UpsertDailyData(data []model.DailyData) error {
 				return fmt.Errorf("failed to upsert SZ daily data: %w", err)
 			}
 		}
-		r.logger.Infof("Upserted %d SZ daily data records", len(szData))
+		logger.Infof("Upserted %d SZ daily data records", len(szData))
 	}
 
 	return nil
 }
 
 // GetDailyData 获取指定股票的日K线数据
-func (r *DailyDataRepository) GetDailyData(tsCode string, startDate, endDate time.Time, limit int) ([]model.DailyData, error) {
+func (r *DailyData) GetDailyData(tsCode string, startDate, endDate time.Time, limit int) ([]model.DailyData, error) {
 	var dataList []model.DailyData
 
 	// 创建一个临时的DailyData对象来确定表名
@@ -146,7 +144,7 @@ func (r *DailyDataRepository) GetDailyData(tsCode string, startDate, endDate tim
 	}
 
 	if err := query.Find(&dataList).Error; err != nil {
-		r.logger.Errorf("Failed to get daily data for %s: %v", tsCode, err)
+		logger.Errorf("Failed to get daily data for %s: %v", tsCode, err)
 		return nil, err
 	}
 
@@ -154,7 +152,7 @@ func (r *DailyDataRepository) GetDailyData(tsCode string, startDate, endDate tim
 }
 
 // GetLatestDailyData 获取最新的日K线数据
-func (r *DailyDataRepository) GetLatestDailyData(tsCode string) (*model.DailyData, error) {
+func (r *DailyData) GetLatestDailyData(tsCode string) (*model.DailyData, error) {
 	var data model.DailyData
 
 	// 创建一个临时的DailyData对象来确定表名
@@ -165,7 +163,7 @@ func (r *DailyDataRepository) GetLatestDailyData(tsCode string) (*model.DailyDat
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		r.logger.Errorf("Failed to get latest daily data for %s: %v", tsCode, err)
+		logger.Errorf("Failed to get latest daily data for %s: %v", tsCode, err)
 		return nil, err
 	}
 
@@ -173,7 +171,7 @@ func (r *DailyDataRepository) GetLatestDailyData(tsCode string) (*model.DailyDat
 }
 
 // DeleteDailyData 删除日K线数据
-func (r *DailyDataRepository) DeleteDailyData(tsCode string, tradeDate time.Time) error {
+func (r *DailyData) DeleteDailyData(tsCode string, tradeDate time.Time) error {
 	// 创建一个临时的DailyData对象来确定表名
 	tempData := model.DailyData{TsCode: tsCode}
 	db := r.db.Table(tempData.TableName()).Where("ts_code = ?", tsCode)
@@ -182,16 +180,16 @@ func (r *DailyDataRepository) DeleteDailyData(tsCode string, tradeDate time.Time
 		db = db.Where("trade_date = ?", tradeDateInt)
 	}
 	if err := db.Delete(&model.DailyData{}).Error; err != nil {
-		r.logger.Errorf("Failed to delete daily data %s %s: %v", tsCode, tradeDate.Format("2006-01-02"), err)
+		logger.Errorf("Failed to delete daily data %s %s: %v", tsCode, tradeDate.Format("2006-01-02"), err)
 		return err
 	}
 
-	r.logger.Debugf("Deleted daily data: %s %s", tsCode, tradeDate.Format("2006-01-02"))
+	logger.Debugf("Deleted daily data: %s %s", tsCode, tradeDate.Format("2006-01-02"))
 	return nil
 }
 
 // GetDailyDataCount 获取日K线数据总数
-func (r *DailyDataRepository) GetDailyDataCount(tsCode string) (int64, error) {
+func (r *DailyData) GetDailyDataCount(tsCode string) (int64, error) {
 	if tsCode == "" {
 		// 获取所有数据总数
 		var shCount, szCount int64
@@ -212,7 +210,7 @@ func (r *DailyDataRepository) GetDailyDataCount(tsCode string) (int64, error) {
 	var count int64
 
 	if err := r.db.Table(tempData.TableName()).Where("ts_code = ?", tsCode).Count(&count).Error; err != nil {
-		r.logger.Errorf("Failed to get daily data count: %v", err)
+		logger.Errorf("Failed to get daily data count: %v", err)
 		return 0, err
 	}
 
@@ -220,7 +218,7 @@ func (r *DailyDataRepository) GetDailyDataCount(tsCode string) (int64, error) {
 }
 
 // GetDateRange 获取数据的日期范围
-func (r *DailyDataRepository) GetDateRange(tsCode string) (startDate, endDate time.Time, err error) {
+func (r *DailyData) GetDateRange(tsCode string) (startDate, endDate time.Time, err error) {
 	// 创建一个临时的DailyData对象来确定表名
 	tempData := model.DailyData{TsCode: tsCode}
 
@@ -233,13 +231,13 @@ func (r *DailyDataRepository) GetDateRange(tsCode string) (startDate, endDate ti
 
 	// 获取最早日期
 	if err := query.Select("MIN(trade_date)").Scan(&startDateInt).Error; err != nil {
-		r.logger.Errorf("Failed to get start date: %v", err)
+		logger.Errorf("Failed to get start date: %v", err)
 		return time.Time{}, time.Time{}, err
 	}
 
 	// 获取最晚日期
 	if err := query.Select("MAX(trade_date)").Scan(&endDateInt).Error; err != nil {
-		r.logger.Errorf("Failed to get end date: %v", err)
+		logger.Errorf("Failed to get end date: %v", err)
 		return time.Time{}, time.Time{}, err
 	}
 
@@ -262,7 +260,7 @@ func (r *DailyDataRepository) GetDateRange(tsCode string) (startDate, endDate ti
 }
 
 // GetAllExchangeStats 获取所有交易所的统计信息
-func (r *DailyDataRepository) GetAllExchangeStats() (map[string]interface{}, error) {
+func (r *DailyData) GetAllExchangeStats() (map[string]interface{}, error) {
 	var shCount, szCount int64
 
 	if err := r.db.Table("daily_data_sh").Count(&shCount).Error; err != nil {
