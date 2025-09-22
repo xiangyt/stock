@@ -2,25 +2,18 @@ package notification
 
 import (
 	"context"
+	"stock/internal/logger"
 	"testing"
 	"time"
 
-	"stock/internal/config"
-	"stock/internal/model"
-	"stock/internal/utils"
-
 	"github.com/stretchr/testify/assert"
+	"stock/internal/model"
 )
 
 func TestNotificationManager(t *testing.T) {
-	// 创建logger
-	logger := utils.NewLogger(config.LogConfig{
-		Level:  "debug",
-		Format: "text",
-	})
 
 	// 创建管理器
-	manager := NewManager(logger)
+	manager := NewManager(logger.GetGlobalLogger())
 
 	// 测试注册机器人
 	mockBot := &MockBot{botType: BotTypeDingTalk}
@@ -44,11 +37,7 @@ func TestNotificationManager(t *testing.T) {
 }
 
 func TestNotificationFactory(t *testing.T) {
-	logger := utils.NewLogger(config.LogConfig{
-		Level:  "debug",
-		Format: "text",
-	})
-	factory := NewFactory(logger)
+	factory := NewFactory(logger.GetGlobalLogger())
 
 	// 测试配置
 	config := &Config{

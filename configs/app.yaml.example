@@ -75,6 +75,19 @@ cors:
   allow_credentials: true
   max_age: 86400       # 预检请求缓存时间(秒)
 
+# 通知配置
+notification:
+  # 钉钉机器人配置
+  dingtalk:
+    enabled: true
+    webhook: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_ACCESS_TOKEN"
+    secret: "YOUR_SECRET_KEY"  # 可选，用于签名验证
+
+  # 企微机器人配置
+  wework:
+    enabled: true
+    webhook: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+
 # 环境变量说明：
 # 可以通过环境变量覆盖配置，环境变量格式为：STOCK_<SECTION>_<KEY>
 # 例如：

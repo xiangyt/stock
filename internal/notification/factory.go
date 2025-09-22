@@ -2,20 +2,26 @@ package notification
 
 import (
 	"fmt"
-
-	"stock/internal/utils"
+	"stock/internal/logger"
+	"sync"
 )
 
 // Factory 通知工厂
 type Factory struct {
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
-// NewFactory 创建通知工厂
-func NewFactory(logger *utils.Logger) *Factory {
-	return &Factory{
-		logger: logger,
-	}
+var (
+	factoryInstance *Factory
+	factoryOnce     sync.Once
+)
+
+// NewFactory 创建通知工厂（单例模式）
+func NewFactory(log *logger.Logger) *Factory {
+	factoryOnce.Do(func() {
+		factoryInstance = &Factory{logger: log}
+	})
+	return factoryInstance
 }
 
 // CreateManager 根据配置创建通知管理器
@@ -32,7 +38,7 @@ func (f *Factory) CreateManager(config *Config) (*Manager, error) {
 
 	// 创建钉钉机器人
 	if config.DingTalk != nil && config.DingTalk.Enabled && config.DingTalk.Webhook != "" {
-		dingTalkBot := NewDingTalkBot(config.DingTalk.Webhook, config.DingTalk.Secret, f.logger)
+		dingTalkBot := NewDingTalkBot(config.DingTalk.Webhook, config.DingTalk.Secret)
 		if err := manager.RegisterBot(BotTypeDingTalk, dingTalkBot); err != nil {
 			return nil, fmt.Errorf("failed to register dingtalk bot: %v", err)
 		}
@@ -41,7 +47,7 @@ func (f *Factory) CreateManager(config *Config) (*Manager, error) {
 
 	// 创建企微机器人
 	if config.WeWork != nil && config.WeWork.Enabled && config.WeWork.Webhook != "" {
-		weWorkBot := NewWeWorkBot(config.WeWork.Webhook, f.logger)
+		weWorkBot := NewWeWorkBot(config.WeWork.Webhook)
 		if err := manager.RegisterBot(BotTypeWeWork, weWorkBot); err != nil {
 			return nil, fmt.Errorf("failed to register wework bot: %v", err)
 		}
@@ -53,10 +59,10 @@ func (f *Factory) CreateManager(config *Config) (*Manager, error) {
 
 // CreateDingTalkBot 创建钉钉机器人
 func (f *Factory) CreateDingTalkBot(webhook, secret string) NotificationBot {
-	return NewDingTalkBot(webhook, secret, f.logger)
+	return NewDingTalkBot(webhook, secret)
 }
 
 // CreateWeWorkBot 创建企微机器人
 func (f *Factory) CreateWeWorkBot(webhook string) NotificationBot {
-	return NewWeWorkBot(webhook, f.logger)
+	return NewWeWorkBot(webhook)
 }

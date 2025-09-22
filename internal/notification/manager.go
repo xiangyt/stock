@@ -3,20 +3,19 @@ package notification
 import (
 	"context"
 	"fmt"
+	"stock/internal/logger"
 	"sync"
-
-	"stock/internal/utils"
 )
 
 // Manager 通知管理器实现
 type Manager struct {
 	bots   map[BotType]NotificationBot
 	mutex  sync.RWMutex
-	logger *utils.Logger
+	logger *logger.Logger
 }
 
 // NewManager 创建通知管理器
-func NewManager(logger *utils.Logger) *Manager {
+func NewManager(logger *logger.Logger) *Manager {
 	return &Manager{
 		bots:   make(map[BotType]NotificationBot),
 		logger: logger,
@@ -61,7 +60,7 @@ func (m *Manager) SendToAllBots(ctx context.Context, message *Message) error {
 	m.mutex.RUnlock()
 
 	if len(bots) == 0 {
-		return fmt.Errorf("no bots registered")
+		return nil
 	}
 
 	var errors []error

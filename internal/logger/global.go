@@ -2,8 +2,6 @@ package logger
 
 import (
 	"sync"
-
-	"stock/internal/config"
 )
 
 var (
@@ -13,7 +11,7 @@ var (
 )
 
 // InitGlobalLogger 初始化全局日志器（只能调用一次）
-func InitGlobalLogger(cfg config.LogConfig) {
+func InitGlobalLogger(cfg LogConfig) {
 	loggerOnce.Do(func() {
 		loggerMutex.Lock()
 		defer loggerMutex.Unlock()
@@ -28,7 +26,7 @@ func GetGlobalLogger() *Logger {
 
 	if globalLogger == nil {
 		// 如果没有初始化，使用默认配置
-		defaultConfig := config.LogConfig{
+		defaultConfig := LogConfig{
 			Level:  "info",
 			Format: "text",
 		}

@@ -13,24 +13,20 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"stock/internal/utils"
 )
 
 // DingTalkBot 钉钉机器人
 type DingTalkBot struct {
 	webhook string
 	secret  string
-	logger  *utils.Logger
 	client  *http.Client
 }
 
 // NewDingTalkBot 创建钉钉机器人
-func NewDingTalkBot(webhook, secret string, logger *utils.Logger) *DingTalkBot {
+func NewDingTalkBot(webhook, secret string) *DingTalkBot {
 	return &DingTalkBot{
 		webhook: webhook,
 		secret:  secret,
-		logger:  logger,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -176,7 +172,6 @@ func (d *DingTalkBot) sendRequest(ctx context.Context, payload map[string]interf
 		}
 	}
 
-	d.logger.Infof("DingTalk message sent successfully")
 	return nil
 }
 

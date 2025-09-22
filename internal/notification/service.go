@@ -3,19 +3,18 @@ package notification
 import (
 	"context"
 	"fmt"
+	"stock/internal/logger"
 	"time"
-
-	"stock/internal/utils"
 )
 
 // Service 通知服务
 type Service struct {
 	manager *Manager
-	logger  *utils.Logger
+	logger  *logger.Logger
 }
 
 // NewService 创建通知服务
-func NewService(manager *Manager, logger *utils.Logger) *Service {
+func NewService(manager *Manager, logger *logger.Logger) *Service {
 	return &Service{
 		manager: manager,
 		logger:  logger,

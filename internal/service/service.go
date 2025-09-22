@@ -1,6 +1,7 @@
 package service
 
 import (
+	"stock/internal/notification"
 	"sync"
 
 	"stock/internal/config"
@@ -13,6 +14,7 @@ type Services struct {
 	DataService        *DataService
 	PerformanceService *PerformanceService
 	ShareholderService *ShareholderService
+	NotifyManger       *notification.Manager
 }
 
 // NewServices 创建服务集合 (使用单例模式)
@@ -21,8 +23,13 @@ func NewServices(cfg *config.Config, logger *logger.Logger) (*Services, error) {
 	dbService := GetDatabaseService(cfg, logger)
 	// 注意：DataService、PerformanceService和ShareholderService需要数据库连接，这里先设为nil
 	// 在实际使用时需要通过InitServicesWithDB来初始化
+	notify, err := notification.NewFactory(logger).CreateManager(&cfg.Notify)
+	if err != nil {
+		return nil, err
+	}
 	return &Services{
 		Database:           dbService,
+		NotifyManger:       notify,
 		DataService:        nil, // 需要数据库连接后初始化
 		PerformanceService: nil, // 需要数据库连接后初始化
 		ShareholderService: nil, // 需要数据库连接后初始化

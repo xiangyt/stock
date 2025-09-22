@@ -13,6 +13,7 @@ import (
 	"stock/internal/database"
 	"stock/internal/logger"
 	"stock/internal/model"
+	"stock/internal/notification"
 	"stock/internal/repository"
 	"stock/internal/service"
 	"stock/internal/utils"
@@ -83,35 +84,26 @@ func setupCronJobs(c *cron.Cron, services *service.Services) {
 		_ = collectAndPersistDailyKLineData(services)
 	})
 
-	c.AddFunc("0 10 17 * * *", func() {
+	c.AddFunc("0 10 18 * * *", func() {
 		// 周K线数据采集 - 第二优先级
 		_ = collectAndPersistWeeklyKLineData(services)
 	})
 
-	c.AddFunc("0 10 18 * * *", func() {
+	c.AddFunc("0 10 20 * * *", func() {
 		// 月K线数据采集 - 第三优先级
 		_ = collectAndPersistMonthlyKLineData(services)
 	})
 
-	c.AddFunc("0 10 19 * * *", func() {
-		// 日K线数据采集 - 第一优先级
-		_ = collectAndPersistDailyKLineData(services)
-	})
-
-	c.AddFunc("0 10 20 * * *", func() {
-		// 周K线数据采集 - 第二优先级
-		_ = collectAndPersistWeeklyKLineData(services)
-		// 年K线数据采集 - 第四优先级
-		_ = collectAndPersistMonthlyKLineData(services)
-	})
-
 	c.AddFunc("0 10 21 * * *", func() {
-		// 日K线数据采集 - 第一优先级
-		_ = collectAndPersistDailyKLineData(services)
+		// 年K线数据采集 - 第四优先级
+		_ = collectAndPersistYearlyKLineData(services)
 	})
 
 	c.AddFunc("0 10 22 * * *", func() {
 		_ = collectAndPersistPerformanceReports(services)
+	})
+
+	c.AddFunc("0 10 23 * * *", func() {
 		_ = collectAndPersistShareholderCounts(services)
 	})
 
@@ -159,6 +151,12 @@ func collectStockBasicInfo(services *service.Services) error {
 	if err != nil {
 		return fmt.Errorf("股票信息同步失败: %v", err)
 	}
+
+	// 同步日志信息给机器人
+	services.NotifyManger.SendToAllBots(context.Background(), &notification.Message{
+		Content: "📋 股票基础信息采集完成",
+		MsgType: notification.MessageTypeText,
+	})
 
 	logger.Info("股票基础信息采集完成")
 	return nil
@@ -211,9 +209,17 @@ func collectAndPersistDailyKLineData(services *service.Services) error {
 		}
 	}
 
-	logger.Infof("日K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v, 平均耗时: %v",
-		stats.TotalTasks, successCount, stats.FailedTasks, stats.TotalDuration, stats.AverageDuration)
+	completionMsg := fmt.Sprintf("📊 日K线数据采集完成\n总数: %d\n成功: %d\n失败: %d\n总耗时: %v\n平均耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime), stats.AverageDuration)
 
+	logger.Infof("日K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v, 平均耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime), stats.AverageDuration)
+
+	// 同步日志信息给机器人
+	services.NotifyManger.SendToAllBots(context.Background(), &notification.Message{
+		Content: completionMsg,
+		MsgType: notification.MessageTypeText,
+	})
 	return nil
 }
 
@@ -260,8 +266,17 @@ func collectAndPersistWeeklyKLineData(services *service.Services) error {
 		}
 	}
 
+	weeklyMsg := fmt.Sprintf("📊 周K线数据采集完成\n总数: %d\n成功: %d\n失败: %d\n总耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime))
+
 	logger.Infof("周K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v",
-		stats.TotalTasks, successCount, stats.FailedTasks, stats.TotalDuration)
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime))
+
+	// 同步日志信息给机器人
+	services.NotifyManger.SendToAllBots(context.Background(), &notification.Message{
+		Content: weeklyMsg,
+		MsgType: notification.MessageTypeText,
+	})
 
 	return nil
 }
@@ -303,8 +318,17 @@ func collectAndPersistMonthlyKLineData(services *service.Services) error {
 		}
 	}
 
+	monthlyMsg := fmt.Sprintf("📊 月K线数据采集完成\n总数: %d\n成功: %d\n失败: %d\n总耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime))
+
 	logger.Infof("月K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v",
-		stats.TotalTasks, successCount, stats.FailedTasks, stats.TotalDuration)
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime))
+
+	// 同步日志信息给机器人
+	services.NotifyManger.SendToAllBots(context.Background(), &notification.Message{
+		Content: monthlyMsg,
+		MsgType: notification.MessageTypeText,
+	})
 
 	return nil
 }
@@ -652,8 +676,17 @@ func collectAndPersistPerformanceReports(services *service.Services) error {
 		}
 	}
 
+	performanceMsg := fmt.Sprintf("📈 业绩报表采集完成\n总数: %d\n成功: %d\n失败: %d\n总耗时: %v\n平均耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime), stats.AverageDuration)
+
 	logger.Infof("业绩报表数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 同步报表: %d, 总耗时: %v, 平均耗时: %v",
-		stats.TotalTasks, successCount, stats.FailedTasks, totalReports, stats.TotalDuration, stats.AverageDuration)
+		stats.TotalTasks, successCount, stats.FailedTasks, totalReports, stats.EndTime.Sub(stats.StartTime), stats.AverageDuration)
+
+	// 同步日志信息给机器人
+	services.NotifyManger.SendToAllBots(context.Background(), &notification.Message{
+		Content: performanceMsg,
+		MsgType: notification.MessageTypeText,
+	})
 
 	return nil
 }
@@ -717,8 +750,18 @@ func collectAndPersistShareholderCounts(services *service.Services) error {
 		}
 	}
 
+	shareholderMsg := fmt.Sprintf("👥 股东人数采集完成\n总数: %d\n成功: %d\n失败: %d\n总耗时: %v\n平均耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime), stats.AverageDuration)
+
 	logger.Infof("股东人数数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 同步股票: %d, 总耗时: %v, 平均耗时: %v",
-		stats.TotalTasks, successCount, stats.FailedTasks, totalCounts, stats.TotalDuration, stats.AverageDuration)
+		stats.TotalTasks, successCount, stats.FailedTasks, totalCounts, stats.EndTime.Sub(stats.StartTime),
+		stats.AverageDuration)
+
+	// 同步日志信息给机器人
+	services.NotifyManger.SendToAllBots(context.Background(), &notification.Message{
+		Content: shareholderMsg,
+		MsgType: notification.MessageTypeText,
+	})
 
 	return nil
 }

@@ -3,21 +3,24 @@ package config
 import (
 	"time"
 
+	"stock/internal/logger"
+	"stock/internal/notification"
+
 	"github.com/spf13/viper"
 )
 
 // Config 应用配置结构
 type Config struct {
-	App       AppConfig       `mapstructure:"app"`
-	Server    ServerConfig    `mapstructure:"server"`
-	Database  DatabaseConfig  `mapstructure:"database"`
-	Redis     RedisConfig     `mapstructure:"redis"`
-	Log       LogConfig       `mapstructure:"log"`
-	JWT       JWTConfig       `mapstructure:"jwt"`
-	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
-	Metrics   MetricsConfig   `mapstructure:"metrics"`
-	CORS      CORSConfig      `mapstructure:"cors"`
-	Notify    NotifyConfig    `mapstructure:"notify"`
+	App       AppConfig           `mapstructure:"app"`
+	Server    ServerConfig        `mapstructure:"server"`
+	Database  DatabaseConfig      `mapstructure:"database"`
+	Redis     RedisConfig         `mapstructure:"redis"`
+	Log       logger.LogConfig    `mapstructure:"log"`
+	JWT       JWTConfig           `mapstructure:"jwt"`
+	RateLimit RateLimitConfig     `mapstructure:"rate_limit"`
+	Metrics   MetricsConfig       `mapstructure:"metrics"`
+	CORS      CORSConfig          `mapstructure:"cors"`
+	Notify    notification.Config `mapstructure:"notify"`
 }
 
 // AppConfig 应用配置
@@ -61,17 +64,6 @@ type RedisConfig struct {
 	MinIdleConns int    `mapstructure:"min_idle_conns"`
 }
 
-// LogConfig 日志配置
-type LogConfig struct {
-	Level      string `mapstructure:"level"`
-	Format     string `mapstructure:"format"`
-	File       string `mapstructure:"file"`
-	MaxSize    int    `mapstructure:"max_size"`
-	MaxBackups int    `mapstructure:"max_backups"`
-	MaxAge     int    `mapstructure:"max_age"`
-	Compress   bool   `mapstructure:"compress"`
-}
-
 // JWTConfig JWT配置
 type JWTConfig struct {
 	Secret      string `mapstructure:"secret"`
@@ -101,25 +93,6 @@ type CORSConfig struct {
 	ExposedHeaders   []string `mapstructure:"exposed_headers"`
 	AllowCredentials bool     `mapstructure:"allow_credentials"`
 	MaxAge           int      `mapstructure:"max_age"`
-}
-
-// NotifyConfig 通知配置
-type NotifyConfig struct {
-	DingTalk *DingTalkConfig `mapstructure:"dingtalk"`
-	WeWork   *WeWorkConfig   `mapstructure:"wework"`
-}
-
-// DingTalkConfig 钉钉机器人配置
-type DingTalkConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Webhook string `mapstructure:"webhook"`
-	Secret  string `mapstructure:"secret"`
-}
-
-// WeWorkConfig 企微机器人配置
-type WeWorkConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Webhook string `mapstructure:"webhook"`
 }
 
 // Load 加载配置
@@ -213,4 +186,11 @@ func setDefaults() {
 	viper.SetDefault("cors.exposed_headers", []string{})
 	viper.SetDefault("cors.allow_credentials", true)
 	viper.SetDefault("cors.max_age", 86400)
+
+	// Notify defaults
+	viper.SetDefault("notify.dingtalk.enabled", false)
+	viper.SetDefault("notify.dingtalk.webhook", "")
+	viper.SetDefault("notify.dingtalk.secret", "")
+	viper.SetDefault("notify.wework.enabled", false)
+	viper.SetDefault("notify.wework.webhook", "")
 }

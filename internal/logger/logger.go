@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"stock/internal/config"
-
 	"github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -16,8 +14,19 @@ type Logger struct {
 	*logrus.Logger
 }
 
+// LogConfig 日志配置
+type LogConfig struct {
+	Level      string `mapstructure:"level"`
+	Format     string `mapstructure:"format"`
+	File       string `mapstructure:"file"`
+	MaxSize    int    `mapstructure:"max_size"`
+	MaxBackups int    `mapstructure:"max_backups"`
+	MaxAge     int    `mapstructure:"max_age"`
+	Compress   bool   `mapstructure:"compress"`
+}
+
 // NewLogger 创建新的日志记录器
-func NewLogger(cfg config.LogConfig) *Logger {
+func NewLogger(cfg LogConfig) *Logger {
 	logger := logrus.New()
 
 	// 设置日志级别

@@ -8,22 +8,18 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"stock/internal/utils"
 )
 
 // WeWorkBot 企微机器人
 type WeWorkBot struct {
 	webhook string
-	logger  *utils.Logger
 	client  *http.Client
 }
 
 // NewWeWorkBot 创建企微机器人
-func NewWeWorkBot(webhook string, logger *utils.Logger) *WeWorkBot {
+func NewWeWorkBot(webhook string) *WeWorkBot {
 	return &WeWorkBot{
 		webhook: webhook,
-		logger:  logger,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -219,6 +215,5 @@ func (w *WeWorkBot) sendRequest(ctx context.Context, payload map[string]interfac
 		}
 	}
 
-	w.logger.Infof("WeWork message sent successfully")
 	return nil
 }
