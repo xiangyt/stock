@@ -5,14 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"stock/internal/config"
 	"stock/internal/logger"
 )
 
 // TestEastMoneyCollector_RateLimit 测试限流功能
 func TestEastMoneyCollector_RateLimit(t *testing.T) {
 	// 创建测试用的 logger
-	logger := logger.NewLogger(config.LogConfig{
+	logger := logger.NewLogger(logger.LogConfig{
 		Level:  "debug",
 		Format: "text",
 	})
@@ -48,7 +47,7 @@ func TestEastMoneyCollector_RateLimit(t *testing.T) {
 
 // TestEastMoneyCollector_SetRateLimit 测试动态设置限流速率
 func TestEastMoneyCollector_SetRateLimit(t *testing.T) {
-	logger := logger.NewLogger(config.LogConfig{
+	logger := logger.NewLogger(logger.LogConfig{
 		Level:  "debug",
 		Format: "text",
 	})
@@ -83,7 +82,7 @@ func TestEastMoneyCollector_SetRateLimit(t *testing.T) {
 
 // TestEastMoneyCollector_GetRateLimitStats 测试获取限流统计信息
 func TestEastMoneyCollector_GetRateLimitStats(t *testing.T) {
-	logger := logger.NewLogger(config.LogConfig{
+	logger := logger.NewLogger(logger.LogConfig{
 		Level:  "debug",
 		Format: "text",
 	})
@@ -119,7 +118,7 @@ func TestEastMoneyCollector_GetRateLimitStats(t *testing.T) {
 
 // BenchmarkEastMoneyCollector_RateLimit 基准测试限流性能
 func BenchmarkEastMoneyCollector_RateLimit(b *testing.B) {
-	logger := logger.NewLogger(config.LogConfig{
+	logger := logger.NewLogger(logger.LogConfig{
 		Level:  "error", // 减少日志输出
 		Format: "text",
 	})

@@ -12,16 +12,20 @@ import (
 type CollectorType string
 
 const (
-	CollectorTypeEastMoney CollectorType = "eastmoney"
-	CollectorTypeHTTP      CollectorType = "http"
-	CollectorTypeTushare   CollectorType = "tushare"
-	CollectorTypeAKShare   CollectorType = "akshare"
+	CollectorTypeEastMoney   CollectorType = "eastmoney"
+	CollectorTypeTongHuaShun CollectorType = "tonghuashun"
+	CollectorTypeHTTP        CollectorType = "http"
+	CollectorTypeTushare     CollectorType = "tushare"
+	CollectorTypeAKShare     CollectorType = "akshare"
 )
 
 // 单例实例存储
 var (
 	eastMoneyCollectorInstance *EastMoneyCollector
 	eastMoneyCollectorOnce     sync.Once
+
+	tongHuaShunCollectorInstance *TongHuaShunCollector
+	tongHuaShunCollectorOnce     sync.Once
 
 	httpCollectorInstances = make(map[string]*HTTPCollector)
 	httpCollectorMutex     sync.RWMutex
@@ -57,6 +61,14 @@ func (f *CollectorFactory) GetEastMoneyCollector() *EastMoneyCollector {
 		eastMoneyCollectorInstance = newEastMoneyCollector(f.logger)
 	})
 	return eastMoneyCollectorInstance
+}
+
+// GetTongHuaShunCollector 获取同花顺采集器单例
+func (f *CollectorFactory) GetTongHuaShunCollector() *TongHuaShunCollector {
+	tongHuaShunCollectorOnce.Do(func() {
+		tongHuaShunCollectorInstance = newTongHuaShunCollector(f.logger)
+	})
+	return tongHuaShunCollectorInstance
 }
 
 // GetHTTPCollector 获取HTTP采集器单例（根据配置名称区分）
@@ -113,6 +125,9 @@ func (f *CollectorFactory) CreateCollector(collectorType CollectorType, config .
 	case CollectorTypeEastMoney:
 		return f.GetEastMoneyCollector(), nil
 
+	case CollectorTypeTongHuaShun:
+		return f.GetTongHuaShunCollector(), nil
+
 	case CollectorTypeHTTP:
 		if len(config) == 0 {
 			return nil, fmt.Errorf("HTTP collector requires configuration")
@@ -137,6 +152,9 @@ func (f *CollectorFactory) CreateDefaultCollectors() map[string]DataCollector {
 	// 创建东方财富采集器（单例）
 	collectors["eastmoney"] = f.GetEastMoneyCollector()
 
+	// 创建同花顺采集器（单例）
+	collectors["tonghuashun"] = f.GetTongHuaShunCollector()
+
 	// 创建Tushare采集器（单例）
 	collectors["tushare"] = f.GetTushareCollector()
 
@@ -154,6 +172,11 @@ func (f *CollectorFactory) GetAllCollectors() map[string]DataCollector {
 	// 东方财富采集器
 	if eastMoneyCollectorInstance != nil {
 		collectors["eastmoney"] = eastMoneyCollectorInstance
+	}
+
+	// 同花顺采集器
+	if tongHuaShunCollectorInstance != nil {
+		collectors["tonghuashun"] = tongHuaShunCollectorInstance
 	}
 
 	// Tushare采集器
@@ -181,6 +204,9 @@ func (f *CollectorFactory) ResetCollectors() {
 	eastMoneyCollectorOnce = sync.Once{}
 	eastMoneyCollectorInstance = nil
 
+	tongHuaShunCollectorOnce = sync.Once{}
+	tongHuaShunCollectorInstance = nil
+
 	tushareCollectorOnce = sync.Once{}
 	tushareCollectorInstance = nil
 
@@ -198,6 +224,7 @@ func (f *CollectorFactory) ResetCollectors() {
 func (f *CollectorFactory) GetSupportedCollectors() []CollectorType {
 	return []CollectorType{
 		CollectorTypeEastMoney,
+		CollectorTypeTongHuaShun,
 		CollectorTypeHTTP,
 		CollectorTypeTushare,
 		CollectorTypeAKShare,

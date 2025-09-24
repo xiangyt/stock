@@ -76,7 +76,7 @@ cors:
   max_age: 86400       # 预检请求缓存时间(秒)
 
 # 通知配置
-notification:
+notify:
   # 钉钉机器人配置
   dingtalk:
     enabled: true
