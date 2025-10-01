@@ -157,10 +157,10 @@ func (h *HTTPCollector) GetStockList() ([]model.Stock, error) {
 
 	stocks := make([]model.Stock, 0, len(result.Data.Items))
 	for _, item := range result.Data.Items {
-		var listDate *time.Time
+		var listDate time.Time
 		if item.ListDate != "" {
 			if t, err := time.Parse("20060102", item.ListDate); err == nil {
-				listDate = &t
+				listDate = t
 			}
 		}
 
@@ -171,7 +171,7 @@ func (h *HTTPCollector) GetStockList() ([]model.Stock, error) {
 			Area:     item.Area,
 			Industry: item.Industry,
 			Market:   item.Market,
-			ListDate: listDate,
+			ListDate: &listDate,
 			IsActive: true,
 		}
 		stocks = append(stocks, stock)
@@ -213,10 +213,10 @@ func (h *HTTPCollector) GetStockDetail(tsCode string) (*model.Stock, error) {
 		return nil, fmt.Errorf("API error: code %d", result.Code)
 	}
 
-	var listDate *time.Time
+	var listDate time.Time
 	if result.Data.ListDate != "" {
 		if t, err := time.Parse("20060102", result.Data.ListDate); err == nil {
-			listDate = &t
+			listDate = t
 		}
 	}
 
@@ -227,7 +227,7 @@ func (h *HTTPCollector) GetStockDetail(tsCode string) (*model.Stock, error) {
 		Area:     result.Data.Area,
 		Industry: result.Data.Industry,
 		Market:   result.Data.Market,
-		ListDate: listDate,
+		ListDate: &listDate,
 		IsActive: true,
 	}
 

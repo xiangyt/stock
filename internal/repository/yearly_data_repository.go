@@ -24,7 +24,7 @@ func NewYearlyData(db *gorm.DB) *YearlyData {
 
 // Create 创建年K线数据
 func (r *YearlyData) Create(data *model.YearlyData) error {
-	data.CreatedAt = time.Now().Unix()
+	data.CreatedAt = time.Now()
 	if err := r.db.Create(data).Error; err != nil {
 		logger.Errorf("Failed to create yearly data: %v", err)
 		return err
@@ -39,7 +39,7 @@ func (r *YearlyData) BatchCreate(dataList []model.YearlyData) error {
 		return nil
 	}
 
-	now := time.Now().Unix()
+	now := time.Now()
 	for i := range dataList {
 		dataList[i].CreatedAt = now
 	}
@@ -55,7 +55,7 @@ func (r *YearlyData) BatchCreate(dataList []model.YearlyData) error {
 
 // Upsert 更新或插入年K线数据
 func (r *YearlyData) Upsert(data *model.YearlyData) error {
-	now := time.Now().Unix()
+	now := time.Now()
 	data.UpdatedAt = now
 
 	// 使用联合主键进行upsert操作
@@ -88,7 +88,7 @@ func (r *YearlyData) BatchUpsert(dataList []model.YearlyData) error {
 		return nil
 	}
 
-	now := time.Now().Unix()
+	now := time.Now()
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for i := range dataList {

@@ -1,315 +1,51 @@
 package collector
 
 import (
-	"crypto/rand"
 	"fmt"
-	"math"
-	"strconv"
-	"strings"
-	"time"
+
+	"github.com/dop251/goja"
 )
 
-// WencaiTokenGenerator 问财token生成器
-type WencaiTokenGenerator struct {
-	tokenServerTime int64
-	first           []interface{}
-	second          []interface{}
-	vn              int
-	un              int
-	s               *QnBuffer
-}
-
-// QnBuffer 缓冲区结构
-type QnBuffer struct {
-	baseFileds []int
-	data       []int
-}
-
-// NewWencaiTokenGenerator 创建新的token生成器
-func NewWencaiTokenGenerator() *WencaiTokenGenerator {
-	gen := &WencaiTokenGenerator{
-		tokenServerTime: time.Now().Unix(),
-		vn:              0,
-		un:              63,
-	}
-
-	// 初始化first和second数组（简化版本）
-	gen.initArrays()
-	gen.init()
-
-	return gen
-}
-
-// initArrays 初始化数组数据
-func (w *WencaiTokenGenerator) initArrays() {
-	// 这里是简化版本，实际应该包含完整的数组数据
-	w.first = []interface{}{
-		"", 9527, "String", "Boolean", "eh", "ad", "Bu", "ileds", "1", "\b",
-		"Array", "7", "base", "64De", "\u2543\u252b", "etatS", "pa", "e",
-		"FromUrl", "getOrigi", "nFromUrl", "\u255b\u253e", "b?\x18q)", "ic",
-		"k", "sted", "he", "wser", "oNo", "ckw", "ent", "hst", "^And", "RM",
-		"systemL", 5, "\u255f\u0978\u095b\u09f5", "TR8", "!'", "gth", "er", "TP",
-		83, "r", true, "v", "v-nixeh", "RegExp", "thsi.cn", "K\x19\"]K^xVV",
-		"KXxAPD?\x1b[Y", "document", 0, "allow", 1, "; ", "length", "Init", "=",
-	}
-
-	w.second = []interface{}{
-		1, "", 0, "he", "ad", 29, "\x180G\x1f", "?>=<;:\\\\/,+", "ng", "to",
-		"ff", "Number", "Error", "11", "6", "er", "ro", "code", "co", "_?L",
-		"ed", "@S\x15D*", "Object", "len", "gth", "on", "lo", "RegExp", "ySta",
-		13, "eel", "ee", "ouse", "ll", "\u2544\u2530\u2555\u2531", "FCm-",
-		"isTru", "getC", "Pos", "ve", "or", "ae", "^", "On", "Sho", "can",
-		"ont", "roid", "anguage", "\u2502", "ta", "tna", "Date", "3", "am",
-	}
-}
-
-// init 初始化缓冲区
-func (w *WencaiTokenGenerator) init() {
-	// 创建QnBuffer实例
-	w.s = &QnBuffer{
-		baseFileds: []int{63, 63, 63, 63, 0, 0, 0, 11, 1, 1, 1, 1, 1, 1, 1, 63, 1, 0},
-		data:       make([]int, 18),
-	}
-
-	// 设置初始值
-	w.s.data[0] = w.serverTimeNow()
-	w.updateRandom()
-	w.s.data[15] = w.vn
-	w.s.data[14] = w.un
-	w.s.data[13] = 0
-	w.s.data[6] = w.strhash()
-	w.s.data[10] = w.getBrowserFeature()
-	w.s.data[12] = w.getPlatform()
-	w.s.data[11] = w.getBrowserIndex()
-	w.s.data[9] = w.getPluginNum()
-}
-
-// serverTimeNow 获取服务器时间
-func (w *WencaiTokenGenerator) serverTimeNow() int {
-	return int(w.tokenServerTime)
-}
-
-// updateRandom 更新随机数
-func (w *WencaiTokenGenerator) updateRandom() {
-	// 生成随机数
-	b := make([]byte, 4)
-	rand.Read(b)
-	randomValue := int(b[0])<<24 | int(b[1])<<16 | int(b[2])<<8 | int(b[3])
-	if randomValue < 0 {
-		randomValue = -randomValue
-	}
-	w.s.data[1] = randomValue % 10000
-}
-
-// strhash 计算字符串哈希
-func (w *WencaiTokenGenerator) strhash() int {
-	userAgent := "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36"
-	hash := 0
-	for _, char := range userAgent {
-		hash = (hash << 5) - hash + int(char)
-		hash = int(uint32(hash)) // 模拟JavaScript的无符号右移
-	}
-	return hash
-}
-
-// getBrowserFeature 获取浏览器特征
-func (w *WencaiTokenGenerator) getBrowserFeature() int {
-	return 3812
-}
-
-// getPlatform 获取平台信息
-func (w *WencaiTokenGenerator) getPlatform() int {
-	return 7
-}
-
-// getBrowserIndex 获取浏览器索引
-func (w *WencaiTokenGenerator) getBrowserIndex() int {
-	return 10
-}
-
-// getPluginNum 获取插件数量
-func (w *WencaiTokenGenerator) getPluginNum() int {
-	return 5
-}
-
-// timeNow 获取当前时间戳
-func (w *WencaiTokenGenerator) timeNow() int {
-	return int(time.Now().UnixMilli() / 1000)
-}
-
-// toBuffer 转换为缓冲区
-func (q *QnBuffer) toBuffer() []int {
-	result := make([]int, 0)
-	bitPos := -1
-
-	for i := 0; i < len(q.baseFileds); i++ {
-		value := q.data[i]
-		bits := q.baseFileds[i]
-		bitPos += bits
-
-		for bits > 0 {
-			result = append(result, value&255)
-			bits--
-			if bits > 0 {
-				bitPos--
-				value >>= 8
-			}
-		}
-	}
-
-	return result
-}
-
-// Base64编码相关函数
-var base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-
-// base64Encode Base64编码
-func base64Encode(data []int) string {
-	var result strings.Builder
-
-	for i := 0; i < len(data); i += 3 {
-		var chunk int
-
-		// 第一个字节
-		if i < len(data) {
-			chunk |= data[i] << 16
-		}
-		// 第二个字节
-		if i+1 < len(data) {
-			chunk |= data[i+1] << 8
-		}
-		// 第三个字节
-		if i+2 < len(data) {
-			chunk |= data[i+2]
-		}
-
-		// 生成4个Base64字符
-		result.WriteByte(base64Chars[(chunk>>18)&63])
-		result.WriteByte(base64Chars[(chunk>>12)&63])
-		result.WriteByte(base64Chars[(chunk>>6)&63])
-		result.WriteByte(base64Chars[chunk&63])
-	}
-
-	return result.String()
-}
-
-// encode 编码函数
-func encode(data []int) string {
-	// 计算校验和
-	checksum := calculateChecksum(data)
-
-	// 创建编码数据
-	encoded := []int{86, checksum} // 86是固定值
-
-	// 加密数据
-	encryptData(data, encoded, checksum)
-
-	return base64Encode(encoded)
-}
-
-// calculateChecksum 计算校验和
-func calculateChecksum(data []int) int {
-	checksum := 0
-	for _, value := range data {
-		checksum = (checksum << 5) - checksum + value
-	}
-	return checksum & 0xFFFFFFFF
-}
-
-// encryptData 加密数据
-func encryptData(source []int, dest []int, key int) {
-	for i := 0; i < len(source); i++ {
-		encrypted := source[i] ^ (key & 255)
-		dest = append(dest, encrypted)
-		key = ^(key * 131) // 简化的密钥更新
-	}
-}
-
-// Update 更新并生成token
-func (w *WencaiTokenGenerator) Update() string {
-	// 更新计数器
-	w.s.data[13]++
-
-	// 更新时间戳
-	w.s.data[0] = w.serverTimeNow()
-	w.s.data[2] = w.timeNow()
-
-	// 重置其他值
-	w.s.data[15] = w.vn
-	w.s.data[7] = 0
-	w.s.data[8] = 0
-	w.s.data[3] = 0
-	w.s.data[4] = 0
-	w.s.data[5] = 0
-	w.s.data[16] = 0
-
-	// 转换为缓冲区并编码
-	buffer := w.s.toBuffer()
-	return encode(buffer)
-}
-
-// GenerateToken 生成问财token的便捷方法
+// GenerateWencaiToken 使用goja执行JavaScript代码生成问财token
 func GenerateWencaiToken() string {
-	generator := NewWencaiTokenGenerator()
-	return generator.Update()
-}
+	// 创建JavaScript虚拟机
+	vm := goja.New()
 
-// 辅助函数：安全的类型转换
-func safeInt(v interface{}) int {
-	switch val := v.(type) {
-	case int:
-		return val
-	case string:
-		if i, err := strconv.Atoi(val); err == nil {
-			return i
-		}
-		return 0
-	case float64:
-		return int(val)
-	default:
-		return 0
-	}
-}
+	// 添加console对象支持
+	console := vm.NewObject()
+	console.Set("log", func(args ...interface{}) {
+		// 可以选择是否输出日志，这里暂时不输出
+		// fmt.Println(args...)
+	})
+	vm.Set("console", console)
 
-// 辅助函数：安全的字符串转换
-func safeString(v interface{}) string {
-	switch val := v.(type) {
-	case string:
-		return val
-	case int:
-		return strconv.Itoa(val)
-	case float64:
-		return fmt.Sprintf("%.0f", val)
-	default:
+	// 读取JavaScript文件
+	//jsFile := filepath.Join("internal", "collector", "wencai.js")
+	//jsCode, err := ioutil.ReadFile(jsFile)
+	//if err != nil {
+	//	fmt.Printf("读取JavaScript文件失败: %v\n", err)
+	//	return ""
+	//}
+	//
+	//// 修改JavaScript代码，移除console.log并直接返回result
+	//jsCodeStr := string(jsCode)
+
+	// 替换最后的console.log(result)为直接返回result
+	//modifiedCode := jsCodeStr + "\nresult;" // 确保最后一行是result，这样vm.RunString会返回result的值
+
+	// 执行JavaScript代码
+	value, err := vm.RunString(wencaiJS)
+	if err != nil {
+		fmt.Printf("执行JavaScript代码失败: %v\n", err)
 		return ""
 	}
-}
 
-// 数学辅助函数
-func mathRandom() float64 {
-	b := make([]byte, 8)
-	rand.Read(b)
-	// 转换为0-1之间的浮点数
-	return float64(b[0]) / 255.0
-}
-
-// 时间戳辅助函数
-func getTimestamp() int64 {
-	return time.Now().UnixMilli()
-}
-
-// 模拟JavaScript的parseInt函数
-func parseInt(s string, base int) int {
-	if base == 0 {
-		base = 10
+	// 获取结果
+	if value != nil {
+		return value.String()
 	}
-	if i, err := strconv.ParseInt(s, base, 64); err == nil {
-		return int(i)
-	}
-	return 0
+
+	return ""
 }
 
-// 模拟JavaScript的Math.floor函数
-func mathFloor(x float64) int {
-	return int(math.Floor(x))
-}
+const wencaiJS = "var TOKEN_SERVER_TIME = 0\nvar document = {}\nvar window = {}\nsecond = [1, \"\", 0, \"he\", \"ad\", 29, \"\\x180G\\x1f\", \"?>=<;:\\\\\\\\/,+\", \"ng\", \"to\", \"ff\", Number, Error, \"11\", \"6\", \"er\", \"ro\", \"code\", \"co\", \"_?L\", \"ed\", \"@S\\x15D*\", Object, \"len\", \"gth\", \"on\", \"lo\", RegExp, \"ySta\", 13, \"eel\", \"ee\", \"ouse\", \"ll\", \"\\u2544\\u2530\\u2555\\u2531\", \"FCm-\", \"isTru\", \"getC\", \"Pos\", \"ve\", \"or\", \"ae\", \"^\", \"On\", \"Sho\", \"can\", \"ont\", \"roid\", \"anguage\", \"\\u2502\", \"ta\", \"tna\", Date, \"3\", \"am\", \"e\", \"n+\", \"f80\", \"\\x1dD\", 6, \"\\u255f\\u253a\\u2542\\u252b\\u2545\\u2568\\u251e\", \"KCABLLAC_NOELEMAHC\", \"X-Antispider-Message\", 3, \".baidu.\", Function, document, !0, \"cookie\", \"; \", \"=\", 96, \"\\u255b\\u253e\\u2550\\u2537\\u2543\\u252b\", \"\\u250c\\u252c\\u255c\\u253d\\u2549\\u2521\\u251c\", \";O\", \"; expires=\", \"getCookie\", \"Thu, 01 Jan 1970 00:00:00 GMT\", \"setCookie\", \"Z\\x18|\", \"i\", \"\\u255b\\u2534\\u2557\\u2536\\u255a\\u2509\\u257d\\u2512\\u2560\\u2501\\u2566\\u2503\", 52, window, 10, \"Init\", !1, \"set\", \"v\", \"eliflmth\", '<script>document.w=window<\\/script><iframe src=\"/favicon.icon\"></iframe>', \"iS.p\", \"head\", \"#default#userData\", \"get\", \"[!\\\"#$%&'()*\", \"g\", \"^d\", \"$D\", \"\\u2568\\u2537\\u2568\\u254c\\u256a\", \"]\\\\P\", \"___\", \"le\", \"th\", \"prototype\", \"base_f\", 8, \"\\\\R5Z\\\\R\\x14@^Q3G\", \"ZV%PgQ?Y]S%\", 67, \"r\", \"length\", \"0\", 16, \"12\", \"\\u2576\\u095f\\u0979\\u09d5\\u0995\\u091b\\u09a9\\u09f9\\u09bd\\u09f7\\u0989\\u09fd\\u09f5\\u09f3\\u09f9\\u0a41\\u0a4d\\u098f\\u0999\\u0905\\u0975\\u09cb\\u09a9\\u09a9\\u099d\\u0927\\u0933\\u0913\\u0a6b\\u0999\\u09a3\\u0937\\u098b\\u09f5\\u0933\\u0a7b\\u091b\\u09b1\\u0a63\\u095f\\u09fb\\u094d\\u0993\\u0943\\u092b\\u0949\\u09a3\\u09e7\\u09cb\\u0925\\u0993\\u09ab\\u09f0\\u092c\\u092c\\u0942\\u0950\\u09c8\\u0944\\u09c6\\u0990\\u0944\\u09cb\\u098e\", \"i,\", \"\\u2505\\u092f\", 12, 56, \"20\", \"1000\", 2, 5, \"11111111\", \"encode\", \"\\u255b\\u0972\\u0959\", \"\\u2519\", \"s\", \"WY$PYS\", \"ystate\", \"1111101000\", / /g, \",\", \"\\u250d\", '^\".*\"$', \"edoc_sutats\", \"status_code\", \"location\", \"redirect_url\", \"href\", \"4294967295\", \"j\", \"1200000\", \"script\", \"src\", \"onreadystatechange\", \"read\", \"loaded\", \"readyState\", \"complete\", \"interactive\", \"onload\", \"undefined\", \"\\\\.com\\\\.cn$|\\\\.com\\\\.hk$\", \".\", \"getServerTime\", 'YY7YAD?FjD\"', \"strhash\", \"random\", \"getRootDomain\", \"booleanToDecimal\", \"timeNow\", \"\\u2559\\u253e\", \"eventBind\", \"onwh\", \"\\u255b\", 46, \"DOMM\", \"cl\", \"T^5^\", \"div\", \"onmousewheel\", \"mousewheel\", 51, \"keydown\", \"clientY\", \"getKeyDown\", \"ch\", \"plu\", \"\\u2543\\u252b\", \"ouc\", \"art\", \"^i\", \"Po\", \"callPhantom\", \"max\", \"Hei\", \"ActiveXObject\", \"nd\", \"yG&Y]\\x17\\x15ZUG#A]Ez\\x15qY5\\x1b\", \"\\u2576\\u097e\\u094e\\u09f8\\u09a6\\u0938\\u09b6\\u09fe\\u0996\\u09d7\\u09a7\\u09d2\\u09cc\", \"Maxthon\", \"Q\", \"opr\", \"chrome\", \"BIDUBrowser\", \"QQBro\", \"[_$ZUR\", \"UBrowser\", \"MSGesture\", \"plugins\", \"doNotTrack\", \"ShockwaveFlash.ShockwaveFlash\", \"]C|\\x18\", \"webgl2\", \"platform\", \"name\", \"^Win32\", \"^MacIntel\", \"^Linux [ix]\\\\d+\", \"^BlackBerry\", \"language\", \"getPlatform\", \"getBrowserIndex\", \"1\", \"10\", 4, 9, \"1100\", \"\\t\\0\", \"3c\", 256, \"w\", \"TTP\", \"et\", \"c\", \"al\", \"\\u255e\", \"base\", \"\\u2569\\u0975\\u094e\\u09e5\\u09a0\\u092e\\u09d1\\u09ed\\u09ce\", \"target\", \"fh%PTQr\", \"#\", \"\\u255f\\u097c\\u0949\\u09f9\", 97, \"rg\", \"tnemelEcrs\", \"fn_Ws\", \"parentNode\", \"tagName\", \"A\", \"submit\", \"PX%\", \"me\", \"host\", \"\\\\.?\", \"d\\x19\", \"Fri, 01 Feb 2050 00:00:00 GMT\", \"]E%\", \"toString\", \"[object Request]\", \"headers\", 83, \"&\", encodeURIComponent, \"open\", \"getAllResponseHeaders\", \"4\", \"tseuqeRpttHLMX\", \"Window\", \"\\u2564\\u095e\", \"RI\", \"\\u2550\\u0953\", \"(YaZ\", \"_\", \"_str\", \"V587\"]\nfirst = [\"\", 9527, String, Boolean, \"eh\", \"ad\", \"Bu\", \"ileds\", \"1\", \"\\b\", Array, \"7\", \"base\", \"64De\", \"\\u2543\\u252b\", \"etatS\", \"pa\", \"e\", \"FromUrl\", \"getOrigi\", \"nFromUrl\", \"\\u255b\\u253e\", \"b?\\x18q)\", \"ic\", \"k\", \"sted\", \"he\", \"wser\", \"oNo\", \"ckw\", \"ent\", \"hst\", \"^And\", \"RM\", \"systemL\", 5, \"\\u255f\\u0978\\u095b\\u09f5\", \"TR8\", \"!'\", \"gth\", \"er\", \"TP\", 83, \"r\", !0, \"v\", \"v-nixeh\", RegExp, \"thsi.cn\", 'K\\x19\"]K^xVV', \"KXxAPD?\\x1b[Y\", document, 0, \"allow\", 1, \"; \", \"length\", \"Init\", \"=\", \"; domain=\", \"checkcookie\", !1, \"eikooCled\", \"tnemucod\", \"d\", window, \"\\u2553\\u0972\\u0959\\u09e4\\u09bd\\u0938\\u0980\\u09c5\\u09b1\\u09d1\\u09a7\\u09dc\\u09dd\\u09d3\\u09c2\", \"\\u2556\\u0979\\u095e\\u09d3\\u09b5\\u0935\\u098f\\u09c7\\u099d\\u09d2\\u09b0\", 23, \"l$P$~\", \"frames\", \"ducument\", \"ydob\", \"documentElement\", \"del\", \"@[\\\\]^`{|}~]\", \"base_fileds\", \"255\", 10, \"10\", 39, \"\\u2547\\u2535\\u255a\\u252e\\u2541\\u2535\\u254c\\u253c\\u2559\", 8, \"4\", \"3\", \"de\", 3, \"11\", 2, \"203\", \"22\", \"111111\", \"3f\", 16, \"\\x0f\", \"\\u2506\\u2537\\u2507\\u2537\", \"11111111\", \"base64Encode\", \"v\\x1d\", \"ati\", \"WY\", \"te\", \"bo\", \"rs\", \"getHost\", Date, \"{DF\", \":\", \"^{.*}$\", \"WU<P[C\", 52, \"1001\", \"href\", \"1111101010\", \"redirect_url\", \"^\\\\s*(?:https?:)?\\\\/{2,}([^\\\\/\\\\?\\\\#\\\\\\\\]+)\", \"i\", \"\\u256c\\u252c\\u2516\\u254b\", \"@\", \"ready\", \"change\", \"dy\", 7, \"protocol\", \"//s.thsi.cn/js/chameleon/time.1\", \"onerror\", \"2000\", \"readyState\", null, \"^(\\\\d+\\\\.)+\\\\d+$\", \"^\\\\s*(?:(https?:))?\\\\/{2,}([^\\\\/\\\\?\\\\#\\\\\\\\]+)\", \".\", \"strToBytes\", \"isIPAddr\", \"serverTimeNow\", \"addEventListener\", \"th\", \"wh\", \"Scro\", \"mousemove\", 55, \"evomhcuot\", \"[[?PVC\\x0e\", \"getMouseMove\", '_R\"xWB%Po_3YT', \"getMouseClick\", \"ght\", \"gin\", \"msD\", \"ack\", \"\\u2556\\u096b\\u095f\", \"Nativ\", \"^A\", \"MozSettingsEvent\", \"safari\", \"ActiveXObject\", \"postMessage\", \"Uint8Array\", \"WeakMap\", \"Google Inc.\", \"vendor\", \"chrome\", \"python\", \"sgAppName\", \"JX\", 6, \"me\", \"LBBROWSER\", \"w4\", \"2345Explorer\", \"TheWorld\", \"\\u2544\", 40, \"tTr\", \"\\u2506\", \"navigator\", \"webdriver\", \"languages\", \"taborcA|FDP\", \"\\u2541\\u097c\\u0949\", 95, \"1e0\", \"e Cli\", \"iso-8859-1\", \"defaultCharset\", \"localStorage\", \"^Win64\", \"^Linux armv|Android\", \"^iPhone\", \"^iPad\", \"B_{VV\", \"getPluginNum\", \"getBrowserFeature\", \"12\", \"16\", \"sE\", \"10000\", \"17\", \"\\u2542\\u2532\\u2556\\u2537\\u2543\\u2526\", \"\\x1cx`R\", 2333, \"XMLH\", \"ers\", \"0\", \"lo\", 57, \"ylppa\", \"error\", \"target\", \"click\", \"unload\", \"HE9AWT9Y\", \"\\\\.\", \"c?\", \"$\", \"/\", \"fetch\", \"prototype\", \"url\", \"\\u2556\\u0971\\u0956\\u09fe\\u09a7\", \"headers\", \"\\u256b\\u2554\", 79, \"?\", \"^(.*?):[ \\\\t]*([^\\\\r\\\\n]*)\\\\r?$\", \"gm\", \"s\", \"src\", \"analysisRst\", \"\\u255e\\u0973\\u0949\\u09f4\\u09a2\\u0929\\u09ac\\u09d4\\u0992\\u09d2\\u09b0\\u09d4\", \"appendChild\", \"Y\", \"jsonp_ignore\", \"^\", 70, \"421\", \"XH>a\", \"\\u2574\\u253c\\u257d\\u2530\\u2575\\u2539\\u257c\\u2533\\u257d\\u2522\\u256e\\u2521\\u2560\\u2524\\u2561\\u2525\", \"CHAMELEON_LOADED\"]\n\nvar r, e, a , n;\nr = e = a = n = first;\nvar u, c, s , t;\nu = c = s = t = second;\n\nfunction serverTimeNow(){\n    return parseInt(TOKEN_SERVER_TIME);\n}\n\nfunction v() {\n    var n = arguments[s[0]];\n    if (!n)\n        return r[0];\n    for (var t = u[1], o = a[1], i = c[2]; i < n.length; i++) {\n        var v = n.charCodeAt(i)\n            , f = v ^ o;\n        o = v,\n            t += e[2].fromCharCode(f)\n    }\n    return t\n}\n\nfunction ot() {\n    var n, t, e , c;\n    n = t = e = c = second;\n    var a, o, i , r;\n    a = o = i = r = first;\n    var u = arguments[a[52]];\n    if (!u)\n        return o[0];\n    for (var s = a[0], v = n[267], f = o[200], l = t[2]; l < u.length; l++) {\n        var p = u.charCodeAt(l);\n        f = (f + t[0]) % v.length,\n            p ^= v.charCodeAt(f),\n            s += i[2].fromCharCode(p)\n    }\n    return s\n}\n\n\n\n\nvar qn = function() {\n    var n, t, r , a;\n    n = t = r = a = first;\n    var e, o, i , s;\n    e = o = i = s = second;\n    var u = o[15]\n        , c = o[102]\n        , f = e[103];\n    function l(r) {\n        var a = o[102]\n            , i = e[103];\n        this[n[76]] = r;\n        for (var u = t[52], c = r[\"length\"]; u < c; u++)\n            this[u] = t[52]\n    }\n    l.prototype.toBuffer = function() {\n        for (var a = \"base_f\", u = this[\"base_fileds\"], c = [], s = -e[0], v = o[2], f = u[r[56]]; v < f; v++)\n            for (var l = this[v], p = u[v], d = s += p; c[d] = l & parseInt(t[77], n[78]),\n            --p != r[52]; )\n                --d,\n                    l >>= parseInt(n[79], i[106]);\n        return c\n    };\n\n    l.prototype.decodeBuffer = function(n) {\n        for (var r = e[8], a = this[ot(e[108], e[109])], o = t[52], u = e[2], s = a[c + r + f]; u < s; u++) {\n            var v = a[u]\n                , l = i[2];\n            do {\n                l = (l << t[82]) + n[o++]\n            } while (--v > t[52]);\n            this[u] = l >>> i[2]\n        }\n    };\n\n    return l;\n}()\n\nfunction at() {\n    var n, t, r;\n    n = t = r = u;\n    var a, o, i;\n    a = o = i = e;\n    var c = arguments[o[52]];\n    if (!c)\n        return t[1];\n    for (var s = o[0], v = o[1], f = a[52]; f < c.length; f++) {\n        var l = c.charCodeAt(f)\n            , p = l ^ v;\n        v = v * f % n[222] + o[200],\n            s += i[2].fromCharCode(p)\n    }\n    return s\n}\n\nvar zn\n!function(n) {\n    var t = s[13]\n        , o = c[53]\n        , i = r[83]\n        , f = r[84]\n        , l = s[110]\n        , d = r[85]\n        , h = r[86];\n    function g(n, a, o, i, u) {\n        for (var c = s[13], v = r[87], f = n[s[111]]; a < f; )\n            o[i++] = n[a++] ^ u & parseInt(c + v + t + \"11\", r[88]),\n                u = ~(u * parseInt(e[89], e[82]))\n    }\n    function w(n) {\n        for (var t = c[112], i = r[52], v = n[s[111]], f = []; i < v; ) {\n            var l = n[i++] << parseInt(\"1\" + t, c[113]) | n[i++] << e[82] | n[i++];\n            f.push(m.charAt(l >> parseInt(e[90], e[82])), m.charAt(l >> parseInt(s[114], e[78]) & parseInt(a[91], r[88])), m.charAt(l >> u[59] & parseInt(\"6\" + o, a[78])), m.charAt(l & parseInt(a[92], u[113])))\n        }\n        return f.join(e[0])\n    }\n    for (var m = at(u[115], s[116]), I = {}, y = u[2]; y < parseInt(i + \"0\", e[93]); y++)\n        I[m.charAt(y)] = y;\n    function O(n) {\n        var t, r, e;\n        t = r = e = s;\n        var o, i, u;\n        o = i = u = a;\n        for (var c = ot(i[94]), l = e[2], p = n[o[56]], d = []; l < p; ) {\n            var h = I[n.charAt(l++)] << parseInt(at(t[117]), u[82]) | I[n.charAt(l++)] << parseInt(v(t[118], u[95], e[119]), o[88]) | I[n.charAt(l++)] << t[59] | I[n.charAt(l++)];\n            d.push(h >> parseInt(e[120], t[106]), h >> parseInt(t[121], r[122]) & parseInt(f + b + c, t[106]), h & parseInt(o[96], u[88]))\n        }\n        return d\n    }\n    function D(n) {\n        var t = O(n);\n        if (rn,\n            p,\n        t[r[52]] != h)\n            return error = T + B + l,\n                void 0;\n        var a = t[c[0]]\n            , o = [];\n        return g(t, +parseInt(e[79], c[122]), o, +u[2], a),\n            x(o) == a ? o : void 0\n    }\n    function x(n) {\n        var t = o;\n        t = Vn;\n        for (var e = c[2], i = a[52], u = n[c[111]]; i < u; i++)\n            e = (e << s[123]) - e + n[i];\n        return e & parseInt(s[124], r[88])\n    }\n    function N(n) {\n        var r = x(n)\n            , e = [h, r];\n        return g(n, +a[52], e, +a[88], r),\n            //t = \"co\", 出问题\n            w(e)\n    }\n    n[\"base64Encode\"] = w,\n        n[\"base64Decode\"] = O,\n        n[\"encode\"] = N,\n        n[\"decode\"] = D\n}(zn || (zn = {}));\n\n\n\nfunction strhash(n) {\n    var t, e, a;\n    t = e = a = s = second;\n    var o, i, u;\n    o = i = u = r = first;\n    n = \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36\"\n    for (var c = u[52], v = a[2], f = n[o[56]]; v < f; v++)\n        c = (c << a[123]) - c + n.charCodeAt(v),\n            c >>>= o[52];\n    return c\n}\n\n\nfunction getBrowserFeature() {\n    return 3812;\n}\n\nfunction getPlatform() {\n    return 7;\n}\n\nfunction getBrowserIndex(){\n    return 10;\n}\n\nfunction getPluginNum(){\n    return 5;\n}\n\nfunction timeNow(){\n    return time = s[52].now(),\n    time / parseInt(c[131], a[88]) >>> c[2]\n}\n\n\nvar En = a[8]\nvar An = v(a[35], s[49])\nvar Vn = 0\nvar Un = s[63]\nvar rt={};\n!function(n) {\n    var t = e[87], o = a[8], i = e[8], f = s[215], l = r[52], p = s[0], d = parseInt(c[216], u[122]), h = e[86], g = u[217], w = u[123], m = e[165], I = parseInt(t + En, c[122]), y = parseInt(a[79], a[82]), _ = c[218], C = parseInt(a[193], e[82]), E = parseInt(o + i, r[78]), A = parseInt(u[219], s[122]), b = parseInt(f + An, s[106]), T = parseInt(r[194], s[106]), B = parseInt(ot(s[220], e[195]), r[82]), R = parseInt(e[196], u[122]), k = parseInt(e[197], a[78]), S;\n    function P() {\n        var n = s[0]\n            , t = r[88]\n            , e = parseInt(u[13], c[122])\n            , a = s[217];\n        S = new qn([a, a, a, a, n, n, n, e, t, t, t, t, t, t, t, a, t, n]);\n        S[p] = serverTimeNow();\n        M(),\n            S[B] = Vn;\n        S[k] = Un;\n        S[R] = c[2];\n        S[h] = strhash();\n        S[b] = getBrowserFeature();\n        S[g] = getPlatform();\n        S[w] = getBrowserIndex();\n        S[m] = getPluginNum();\n    }\n    function M() {  //阅读后发现可以偷懒没直接使用random返回\n        S[l] = Math.random() * parseInt(u[141], r[78]) >>> r[52]\n    }\n\n    function O() {\n        S[R]++,\n            S[p] = serverTimeNow(),\n            S[d] = timeNow(),\n            S[B] = Vn,\n            S[I] = 0,\n            S[y] = 0,\n            S[_] = 0,\n            S[C] = 0,\n            S[E] = 0,\n            S[A] = 0;\n        var n = S.toBuffer();\n        console.log(n);\n        return zn.encode(n)\n    }\n    //n[e[57]] = P;\n    P();\n    function D() {\n        return O()\n    }\n    n[\"update\"] = D\n}(rt);\nresult = rt.update();"

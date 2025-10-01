@@ -24,7 +24,7 @@ func NewWeeklyData(db *gorm.DB) *WeeklyData {
 
 // Create 创建周K线数据
 func (r *WeeklyData) Create(data *model.WeeklyData) error {
-	data.CreatedAt = time.Now().Unix()
+	data.CreatedAt = time.Now()
 	if err := r.db.Create(data).Error; err != nil {
 		logger.Errorf("Failed to create weekly data: %v", err)
 		return err
@@ -39,7 +39,7 @@ func (r *WeeklyData) BatchCreate(dataList []model.WeeklyData) error {
 		return nil
 	}
 
-	now := time.Now().Unix()
+	now := time.Now()
 	for i := range dataList {
 		dataList[i].CreatedAt = now
 	}
@@ -55,7 +55,7 @@ func (r *WeeklyData) BatchCreate(dataList []model.WeeklyData) error {
 
 // Upsert 更新或插入周K线数据
 func (r *WeeklyData) Upsert(data *model.WeeklyData) error {
-	now := time.Now().Unix()
+	now := time.Now()
 	data.UpdatedAt = now
 
 	// 使用联合主键进行upsert操作
@@ -88,7 +88,7 @@ func (r *WeeklyData) BatchUpsert(dataList []model.WeeklyData) error {
 		return nil
 	}
 
-	now := time.Now().Unix()
+	now := time.Now()
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for i := range dataList {

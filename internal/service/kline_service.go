@@ -124,7 +124,7 @@ func (s *KLineService) saveDailyDataToDB(tsCode string, data []model.DailyData, 
 	// 设置创建时间
 	for i := range data {
 		data[i].TsCode = tsCode
-		data[i].CreatedAt = time.Now().Unix()
+		data[i].CreatedAt = time.Now()
 	}
 
 	// 使用DailyKLineManager保存数据到对应的交易所表

@@ -143,10 +143,328 @@ func (t *TongHuaShunCollector) makeRequestWithContext(ctx context.Context, url, 
 	return resp, nil
 }
 
-// GetStockList 获取股票列表 - 空实现
+// GetStockList 获取股票列表
 func (t *TongHuaShunCollector) GetStockList() ([]model.Stock, error) {
-	t.logger.Info("TongHuaShun GetStockList - 功能暂未实现")
-	return []model.Stock{}, fmt.Errorf("TongHuaShun GetStockList not implemented yet")
+	t.logger.Info("TongHuaShun GetStockList - 开始获取股票列表")
+
+	var allStocks []model.Stock
+	maxPages := 50 // 限制最大页数，避免无限循环
+
+	for page := 1; page <= maxPages; page++ {
+		stocks, hasMore, err := t.getStockListPage(page)
+		if err != nil {
+			t.logger.Errorf("获取第%d页股票列表失败: %v", page, err)
+			// 如果是第一页就失败，返回错误；否则继续处理已获取的数据
+			if page == 1 {
+				return nil, fmt.Errorf("获取股票列表失败: %v", err)
+			}
+			break
+		}
+
+		allStocks = append(allStocks, stocks...)
+		t.logger.Infof("已获取第%d页，本页%d只股票，累计%d只股票", page, len(stocks), len(allStocks))
+
+		if !hasMore || len(stocks) == 0 {
+			break
+		}
+
+		// 添加延迟，避免请求过快
+		time.Sleep(1 * time.Second)
+	}
+
+	t.logger.Infof("TongHuaShun GetStockList 完成，共获取%d只股票", len(allStocks))
+	return allStocks, nil
+}
+
+// getStockListPage 获取指定页的股票列表
+func (t *TongHuaShunCollector) getStockListPage(page int) ([]model.Stock, bool, error) {
+	// 使用提供的同花顺API端点
+	url := fmt.Sprintf("https://data.10jqka.com.cn/funds/ggzjl/field/zdf/order/desc/page/%d/ajax/1/free/1/", page)
+
+	// 创建请求
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, false, fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置请求头 - 完全按照curl请求设置
+	req.Header.Set("Accept", "text/html, */*; q=0.01")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	req.Header.Set("Priority", "u=1, i")
+	req.Header.Set("Referer", "https://data.10jqka.com.cn/funds/ggzjl/")
+	req.Header.Set("Sec-Ch-Ua", `"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"`)
+	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
+	req.Header.Set("Sec-Ch-Ua-Platform", `"macOS"`)
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36")
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+
+	// 动态生成 hexin-v token
+	hexinV := GenerateWencaiToken()
+
+	// 设置Cookie - 基于curl请求中的格式
+	timestamp := time.Now().Unix()
+	cookieValue := fmt.Sprintf("Hm_lvt_722143063e4892925903024537075d0d=%d; HMACCOUNT=17C55F0F7B5ABE69; Hm_lvt_929f8b362150b1f77b477230541dbbc2=%d; Hm_lvt_78c58f01938e4d85eaf619eae71b4ed1=%d; Hm_lvt_69929b9dce4c22a060bd22d703b2a280=%d; spversion=20130314; Hm_lvt_60bad21af9c824a4a0530d5dbf4357ca=%d; Hm_lvt_f79b64788a4e377c608617fba4c736e2=%d; historystock=600930%%7C*%%7C001208%%7C*%%7C001201%%7C*%%7C300111; log=; Hm_lpvt_f79b64788a4e377c608617fba4c736e2=%d; Hm_lpvt_60bad21af9c824a4a0530d5dbf4357ca=%d; Hm_lpvt_722143063e4892925903024537075d0d=%d; Hm_lpvt_78c58f01938e4d85eaf619eae71b4ed1=%d; Hm_lpvt_929f8b362150b1f77b477230541dbbc2=%d; Hm_lpvt_69929b9dce4c22a060bd22d703b2a280=%d; v=%s",
+		timestamp, timestamp, timestamp, timestamp, timestamp, timestamp,
+		timestamp, timestamp, timestamp, timestamp, timestamp, timestamp, hexinV)
+
+	req.Header.Set("Cookie", cookieValue)
+	req.Header.Set("Hexin-V", hexinV)
+
+	// 发送请求
+	resp, err := t.client.Do(req)
+	if err != nil {
+		return nil, false, fmt.Errorf("请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, false, fmt.Errorf("HTTP状态码: %d", resp.StatusCode)
+	}
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, false, fmt.Errorf("读取响应失败: %v", err)
+	}
+
+	// 解析HTML响应
+	stocks, hasMore, err := t.parseStockListHTML(string(body))
+	if err != nil {
+		return nil, false, fmt.Errorf("解析HTML失败: %v", err)
+	}
+
+	return stocks, hasMore, nil
+}
+
+// parseStockListHTML 解析股票列表HTML
+func (t *TongHuaShunCollector) parseStockListHTML(html string) ([]model.Stock, bool, error) {
+	// 查找所有股票行
+	lines := strings.Split(html, "\n")
+	var stocks = make([]model.Stock, 0, len(lines))
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// 查找包含股票代码的行
+		if strings.Contains(line, "stockCode") && strings.Contains(line, "linkToGghq") {
+			stock, err := t.parseStockRow(line, lines, i)
+			if err != nil {
+				t.logger.Warnf("解析股票行失败: %v, 行内容: %s", err, line)
+				continue
+			}
+			if stock != nil {
+				stocks = append(stocks, *stock)
+			}
+		}
+	}
+
+	// 简单判断是否还有更多页面（如果当前页有数据，假设还有更多）
+	hasMore := len(stocks) > 0
+
+	return stocks, hasMore, nil
+}
+
+// parseStockRow 解析单个股票行
+func (t *TongHuaShunCollector) parseStockRow(line string, allLines []string, lineIndex int) (*model.Stock, error) {
+	// 提取股票代码
+	codeStart := strings.Index(line, "stockCode\">")
+	if codeStart == -1 {
+		return nil, fmt.Errorf("未找到股票代码")
+	}
+	codeStart += len("stockCode\">")
+	codeEnd := strings.Index(line[codeStart:], "</a>")
+	if codeEnd == -1 {
+		return nil, fmt.Errorf("未找到股票代码结束标记")
+	}
+	stockCode := line[codeStart : codeStart+codeEnd]
+
+	// 尝试多种方法提取股票名称
+	stockName := t.extractStockName(line, allLines, lineIndex, stockCode)
+
+	// 确定市场和构建ts_code
+	var market string
+	var tsCode string
+
+	if len(stockCode) == 6 {
+		// 根据股票代码前缀判断市场
+		switch {
+		case strings.HasPrefix(stockCode, "60") || strings.HasPrefix(stockCode, "68"):
+			market = "SH" // 上海证券交易所
+			tsCode = stockCode + ".SH"
+		case strings.HasPrefix(stockCode, "00") || strings.HasPrefix(stockCode, "30"):
+			market = "SZ" // 深圳证券交易所
+			tsCode = stockCode + ".SZ"
+		default:
+			market = "SZ" // 默认深圳
+			tsCode = stockCode + ".SZ"
+		}
+	} else {
+		return nil, fmt.Errorf("无效的股票代码格式: %s", stockCode)
+	}
+
+	// 创建股票对象
+	stock := &model.Stock{
+		TsCode:    tsCode,
+		Symbol:    stockCode,
+		Name:      stockName,
+		Market:    market,
+		IsActive:  true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	return stock, nil
+}
+
+// extractStockName 提取股票名称的多种方法
+func (t *TongHuaShunCollector) extractStockName(line string, allLines []string, lineIndex int, stockCode string) string {
+	// 方法1：查找 title 属性
+	if name := t.extractFromTitle(line); name != "" {
+		return name
+	}
+
+	// 方法2：查找后续行的 title 属性
+	for j := lineIndex + 1; j < len(allLines) && j < lineIndex+5; j++ {
+		if name := t.extractFromTitle(allLines[j]); name != "" {
+			return name
+		}
+	}
+
+	// 方法3：查找 alt 属性
+	if name := t.extractFromAlt(line); name != "" {
+		return name
+	}
+
+	// 方法4：查找后续行的 alt 属性
+	for j := lineIndex + 1; j < len(allLines) && j < lineIndex+5; j++ {
+		if name := t.extractFromAlt(allLines[j]); name != "" {
+			return name
+		}
+	}
+
+	// 方法5：查找包含中文的纯文本行
+	for j := lineIndex + 1; j < len(allLines) && j < lineIndex+10; j++ {
+		nextLine := strings.TrimSpace(allLines[j])
+		if t.isValidStockName(nextLine) {
+			return nextLine
+		}
+	}
+
+	// 方法6：查找 data-name 或其他数据属性
+	if name := t.extractFromDataAttributes(line); name != "" {
+		return name
+	}
+
+	// 方法7：查找后续行的数据属性
+	for j := lineIndex + 1; j < len(allLines) && j < lineIndex+5; j++ {
+		if name := t.extractFromDataAttributes(allLines[j]); name != "" {
+			return name
+		}
+	}
+
+	// 最后使用股票代码作为名称
+	return stockCode
+}
+
+// extractFromTitle 从 title 属性提取名称
+func (t *TongHuaShunCollector) extractFromTitle(line string) string {
+	patterns := []string{"title=\"", "title='"}
+	for _, pattern := range patterns {
+		if nameStart := strings.Index(line, pattern); nameStart != -1 {
+			nameStart += len(pattern)
+			endChar := pattern[len(pattern)-1:]
+			if nameEnd := strings.Index(line[nameStart:], endChar); nameEnd != -1 {
+				name := strings.TrimSpace(line[nameStart : nameStart+nameEnd])
+				if t.isValidStockName(name) {
+					return name
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// extractFromAlt 从 alt 属性提取名称
+func (t *TongHuaShunCollector) extractFromAlt(line string) string {
+	patterns := []string{"alt=\"", "alt='"}
+	for _, pattern := range patterns {
+		if nameStart := strings.Index(line, pattern); nameStart != -1 {
+			nameStart += len(pattern)
+			endChar := pattern[len(pattern)-1:]
+			if nameEnd := strings.Index(line[nameStart:], endChar); nameEnd != -1 {
+				name := strings.TrimSpace(line[nameStart : nameStart+nameEnd])
+				if t.isValidStockName(name) {
+					return name
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// extractFromDataAttributes 从数据属性提取名称
+func (t *TongHuaShunCollector) extractFromDataAttributes(line string) string {
+	patterns := []string{"data-name=\"", "data-title=\"", "data-stock-name=\""}
+	for _, pattern := range patterns {
+		if nameStart := strings.Index(line, pattern); nameStart != -1 {
+			nameStart += len(pattern)
+			if nameEnd := strings.Index(line[nameStart:], "\""); nameEnd != -1 {
+				name := strings.TrimSpace(line[nameStart : nameStart+nameEnd])
+				if t.isValidStockName(name) {
+					return name
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// isValidStockName 判断是否为有效的股票名称
+func (t *TongHuaShunCollector) isValidStockName(name string) bool {
+	if len(name) == 0 || len(name) > 20 {
+		return false
+	}
+
+	// 排除HTML标签
+	if strings.Contains(name, "<") || strings.Contains(name, ">") {
+		return false
+	}
+
+	// 排除明显不是股票名称的内容
+	excludePatterns := []string{"http", "www", "javascript", "function", "var ", "return", "null", "undefined"}
+	for _, pattern := range excludePatterns {
+		if strings.Contains(strings.ToLower(name), pattern) {
+			return false
+		}
+	}
+
+	// 必须包含中文字符或者是常见的英文股票名称格式
+	return containsChinese(name) || t.isEnglishStockName(name)
+}
+
+// isEnglishStockName 判断是否为英文股票名称
+func (t *TongHuaShunCollector) isEnglishStockName(name string) bool {
+	// 简单判断：包含字母且长度合理
+	hasLetter := false
+	for _, r := range name {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+			hasLetter = true
+			break
+		}
+	}
+	return hasLetter && len(name) >= 2 && len(name) <= 15
+}
+
+// containsChinese 检查字符串是否包含中文字符
+func containsChinese(s string) bool {
+	for _, r := range s {
+		if r >= 0x4e00 && r <= 0x9fff {
+			return true
+		}
+	}
+	return false
 }
 
 // GetStockDetail 获取股票详情 - 空实现
@@ -199,13 +517,6 @@ func (t *TongHuaShunCollector) GetDailyKLine(tsCode string, startDate, endDate t
 		return nil, fmt.Errorf("failed to parse daily K-line response: %w", err)
 	}
 	return dailyData, nil
-	// 根据时间范围过滤数据
-	//filteredData := t.filterDataByDateRange(dailyData, startDate, endDate)
-	//
-	//t.logger.Infof("TongHuaShun fetched %d daily K-line records for %s (filtered from %d total)",
-	//	len(filteredData), tsCode, len(dailyData))
-	//
-	//return filteredData, nil
 }
 
 // GetWeeklyKLine 获取周K线数据 - 空实现
@@ -407,8 +718,8 @@ func (t *TongHuaShunCollector) parseDailyKLineResponse(tsCode, res string) ([]mo
 				TsCode:    tsCode,
 				Volume:    0,
 				Amount:    0,
-				CreatedAt: time.Now().Unix(),
-				UpdatedAt: time.Now().Unix(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
 			}
 			_, err := time.ParseInLocation("20060102", fmt.Sprintf("%d%s", year, dates[index]), time.Local)
 			if err != nil {

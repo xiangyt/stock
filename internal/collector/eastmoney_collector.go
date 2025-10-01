@@ -653,7 +653,7 @@ func (e *EastMoneyCollector) GetRealtimeData(tsCodes []string) ([]model.DailyDat
 			TsCode:    tsCode,
 			TradeDate: nowDateInt,
 			Close:     parseFloat(item.F2), // 最新价作为收盘价
-			CreatedAt: now.Unix(),
+			CreatedAt: now,
 			// 其他字段暂时无法从该API获取
 		}
 		realtimeData = append(realtimeData, data)

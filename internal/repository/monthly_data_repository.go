@@ -24,7 +24,7 @@ func NewMonthlyData(db *gorm.DB) *MonthlyData {
 
 // Create 创建月K线数据
 func (r *MonthlyData) Create(data *model.MonthlyData) error {
-	data.CreatedAt = time.Now().Unix()
+	data.CreatedAt = time.Now()
 	if err := r.db.Create(data).Error; err != nil {
 		logger.Errorf("Failed to create monthly data: %v", err)
 		return err
@@ -39,7 +39,7 @@ func (r *MonthlyData) BatchCreate(dataList []model.MonthlyData) error {
 		return nil
 	}
 
-	now := time.Now().Unix()
+	now := time.Now()
 	for i := range dataList {
 		dataList[i].CreatedAt = now
 	}
@@ -55,7 +55,7 @@ func (r *MonthlyData) BatchCreate(dataList []model.MonthlyData) error {
 
 // Upsert 更新或插入月K线数据
 func (r *MonthlyData) Upsert(data *model.MonthlyData) error {
-	now := time.Now().Unix()
+	now := time.Now()
 	data.UpdatedAt = now
 
 	// 使用联合主键进行upsert操作
@@ -88,7 +88,7 @@ func (r *MonthlyData) BatchUpsert(dataList []model.MonthlyData) error {
 		return nil
 	}
 
-	now := time.Now().Unix()
+	now := time.Now()
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for i := range dataList {

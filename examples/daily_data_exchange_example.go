@@ -57,7 +57,7 @@ func main() {
 			Close:     10.5,
 			Volume:    1000000,
 			Amount:    10500000.0,
-			CreatedAt: time.Now().Unix(),
+			CreatedAt: time.Now(),
 		},
 		{
 			TsCode:    "000001.SZ",
@@ -68,7 +68,7 @@ func main() {
 			Close:     15.5,
 			Volume:    2000000,
 			Amount:    31000000.0,
-			CreatedAt: time.Now().Unix(),
+			CreatedAt: time.Now(),
 		},
 	}
 

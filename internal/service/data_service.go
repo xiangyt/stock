@@ -6,11 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
 	"stock/internal/collector"
 	"stock/internal/logger"
 	"stock/internal/model"
 	"stock/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 // DataService 数据服务
@@ -61,25 +62,25 @@ func (s *DataService) GetDB() *gorm.DB {
 func (s *DataService) SyncStockList() error {
 	s.logger.Info("Starting stock list synchronization...")
 
-	// 创建东方财富采集器
-	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeEastMoney)
+	// 创建采集器
+	collect, err := s.collectorFactory.CreateCollector(collector.CollectorTypeTongHuaShun)
 	if err != nil {
-		return fmt.Errorf("failed to create EastMoney collector: %v", err)
+		return fmt.Errorf("failed to create collector: %v", err)
 	}
 
 	// 连接数据源
-	if err := eastMoney.Connect(); err != nil {
-		return fmt.Errorf("failed to connect to EastMoney: %v", err)
+	if err := collect.Connect(); err != nil {
+		return fmt.Errorf("failed to connect to collector: %v", err)
 	}
-	defer eastMoney.Disconnect()
+	defer collect.Disconnect()
 
 	// 获取股票列表
-	stocks, err := eastMoney.GetStockList()
+	stocks, err := collect.GetStockList()
 	if err != nil {
 		return fmt.Errorf("failed to get stock list: %v", err)
 	}
 
-	s.logger.Infof("Fetched %d stocks from EastMoney", len(stocks))
+	s.logger.Infof("Fetched %d stocks", len(stocks))
 
 	if err := s.UpdateALLStockStatus(false); err != nil {
 		return fmt.Errorf("failed to reset stock status err: %v", err)

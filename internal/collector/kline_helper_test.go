@@ -137,18 +137,18 @@ func TestKLineParser_ParseToDaily(t *testing.T) {
 			}
 
 			// 验证时间戳字段存在且合理
-			if result.CreatedAt <= 0 {
-				t.Errorf("CreatedAt should be positive, got %d", result.CreatedAt)
+			if result.CreatedAt.IsZero() {
+				t.Errorf("CreatedAt should be positive, got %d", result.CreatedAt.Unix())
 			}
 
-			if result.UpdatedAt <= 0 {
-				t.Errorf("UpdatedAt should be positive, got %d", result.UpdatedAt)
+			if result.UpdatedAt.IsZero() {
+				t.Errorf("UpdatedAt should be positive, got %d", result.UpdatedAt.Unix())
 			}
 
 			// 验证时间戳是最近的时间
 			now := time.Now().Unix()
-			if result.CreatedAt > now || result.CreatedAt < now-10 {
-				t.Errorf("CreatedAt should be recent, got %d, now is %d", result.CreatedAt, now)
+			if result.CreatedAt.Unix() > now || result.CreatedAt.Unix() < now-10 {
+				t.Errorf("CreatedAt should be recent, got %d, now is %d", result.CreatedAt.Unix(), now)
 			}
 		})
 	}

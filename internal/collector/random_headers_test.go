@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"stock/internal/config"
 	"stock/internal/logger"
 )
 
@@ -102,7 +101,7 @@ func TestSecChUaGeneration(t *testing.T) {
 
 func TestEastMoneyCollectorRandomHeaders(t *testing.T) {
 	// 创建测试logger
-	testLogger := logger.NewLogger(config.LogConfig{
+	testLogger := logger.NewLogger(logger.LogConfig{
 		Level:  "debug",
 		Format: "text",
 	})
@@ -160,7 +159,7 @@ func TestEastMoneyCollectorRandomHeaders(t *testing.T) {
 
 func TestRandomHeadersIntegration(t *testing.T) {
 	// 创建测试logger
-	testLogger := logger.NewLogger(config.LogConfig{
+	testLogger := logger.NewLogger(logger.LogConfig{
 		Level:  "info",
 		Format: "text",
 	})

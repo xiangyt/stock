@@ -38,8 +38,8 @@ func (p *KLineParser) ParseToDaily(tsCode, kline string) (*model.DailyData, erro
 		Close:     p.parseFloat(fields[2]),
 		Volume:    p.parseInt64(fields[5]),
 		Amount:    p.parseFloat(fields[6]),
-		CreatedAt: time.Now().Unix(),
-		UpdatedAt: time.Now().Unix(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}, nil
 }
 
@@ -64,7 +64,7 @@ func (p *KLineParser) ParseToWeekly(tsCode, kline string) (*model.WeeklyData, er
 		Low:       p.parseFloat(fields[4]),
 		Volume:    p.parseInt64(fields[5]),
 		Amount:    p.parseFloat(fields[6]),
-		CreatedAt: time.Now().Unix(),
+		CreatedAt: time.Now(),
 	}, nil
 }
 
@@ -89,7 +89,7 @@ func (p *KLineParser) ParseToMonthly(tsCode, kline string) (*model.MonthlyData, 
 		Low:       p.parseFloat(fields[4]),
 		Volume:    p.parseInt64(fields[5]),
 		Amount:    p.parseFloat(fields[6]),
-		CreatedAt: time.Now().Unix(),
+		CreatedAt: time.Now(),
 	}, nil
 }
 
@@ -114,7 +114,7 @@ func (p *KLineParser) ParseToQuarterly(tsCode, kline string) (*model.QuarterlyDa
 		Low:       p.parseFloat(fields[4]),
 		Volume:    p.parseInt64(fields[5]),
 		Amount:    p.parseFloat(fields[6]),
-		CreatedAt: time.Now().Unix(),
+		CreatedAt: time.Now(),
 	}, nil
 }
 
@@ -139,7 +139,7 @@ func (p *KLineParser) ParseToYearly(tsCode, kline string) (*model.YearlyData, er
 		Low:       p.parseFloat(fields[4]),
 		Volume:    p.parseInt64(fields[5]),
 		Amount:    p.parseFloat(fields[6]),
-		CreatedAt: time.Now().Unix(),
+		CreatedAt: time.Now(),
 	}, nil
 }
 
