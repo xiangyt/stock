@@ -148,7 +148,7 @@ func (t *TongHuaShunCollector) GetStockList() ([]model.Stock, error) {
 	t.logger.Info("TongHuaShun GetStockList - 开始获取股票列表")
 
 	var allStocks []model.Stock
-	maxPages := 50 // 限制最大页数，避免无限循环
+	maxPages := 103 // 限制最大页数，避免无限循环
 
 	for page := 1; page <= maxPages; page++ {
 		stocks, hasMore, err := t.getStockListPage(page)
@@ -512,7 +512,7 @@ func (t *TongHuaShunCollector) GetDailyKLine(tsCode string, startDate, endDate t
 	}
 
 	// 解析响应数据
-	dailyData, err := t.parseDailyKLineResponse(tsCode, string(body))
+	dailyData, err := t.parseDailyKLineResponse(tsCode, string(body), startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse daily K-line response: %w", err)
 	}
@@ -677,7 +677,8 @@ func (t *TongHuaShunCollector) buildTHSStockCode(symbol, market string) string {
 }
 
 // parseDailyKLineResponse 解析同花顺日K线响应数据
-func (t *TongHuaShunCollector) parseDailyKLineResponse(tsCode, res string) ([]model.DailyData, error) {
+func (t *TongHuaShunCollector) parseDailyKLineResponse(tsCode, res string, startDate, endDate time.Time) (
+	[]model.DailyData, error) {
 	// 同花顺返回的是JavaScript格式，需要提取数据部分
 	// 示例格式: quotebridge_v6_line_hs_001208_01_all({"data":"20240101,10.5,10.8,10.2,10.6,1000000;..."})
 	symbol, market, err := t.parseStockCode(tsCode)
@@ -721,23 +722,24 @@ func (t *TongHuaShunCollector) parseDailyKLineResponse(tsCode, res string) ([]mo
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}
-			_, err := time.ParseInLocation("20060102", fmt.Sprintf("%d%s", year, dates[index]), time.Local)
+			td, err := time.ParseInLocation("20060102", fmt.Sprintf("%d%s", year, dates[index]), time.Local)
 			if err != nil {
 				return nil, err
 			}
-			daily.TradeDate, _ = strconv.Atoi(fmt.Sprintf("%d%s", year, dates[index]))
-
-			low, _ := strconv.Atoi(prices[index*4])
-			open, _ := strconv.Atoi(prices[index*4+1])
-			high, _ := strconv.Atoi(prices[index*4+2])
-			over, _ := strconv.Atoi(prices[index*4+3])
-			volume, _ := strconv.ParseInt(volumes[index], 10, 64)
-			daily.Low = float64(low) / 100
-			daily.Open = float64(low+open) / 100
-			daily.High = float64(low+high) / 100
-			daily.Close = float64(low+over) / 100
-			daily.Volume = volume / 100
-			dailyData = append(dailyData, daily)
+			if !(td.Before(startDate) || td.After(endDate)) {
+				daily.TradeDate, _ = strconv.Atoi(fmt.Sprintf("%d%s", year, dates[index]))
+				low, _ := strconv.Atoi(prices[index*4])
+				open, _ := strconv.Atoi(prices[index*4+1])
+				high, _ := strconv.Atoi(prices[index*4+2])
+				over, _ := strconv.Atoi(prices[index*4+3])
+				volume, _ := strconv.ParseInt(volumes[index], 10, 64)
+				daily.Low = float64(low) / 100
+				daily.Open = float64(low+open) / 100
+				daily.High = float64(low+high) / 100
+				daily.Close = float64(low+over) / 100
+				daily.Volume = volume / 100
+				dailyData = append(dailyData, daily)
+			}
 			num--
 			index++
 		}

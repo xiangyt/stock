@@ -77,7 +77,7 @@ func (r *DailyData) SaveDailyData(data []model.DailyData) error {
 	return nil
 }
 
-// UpsertDailyData 更新或插入日K线数据到对应的交易所表
+// UpsertDailyData 更新或插入日K线数据到对应的交易所表（支持分批处理）
 func (r *DailyData) UpsertDailyData(data []model.DailyData) error {
 	if len(data) == 0 {
 		return nil
@@ -96,23 +96,43 @@ func (r *DailyData) UpsertDailyData(data []model.DailyData) error {
 		}
 	}
 
-	// 分别更新到对应的表
+	// 分批处理上海交易所数据
 	if len(shData) > 0 {
-		for _, item := range shData {
-			if err := r.db.Table("daily_data_sh").Save(&item).Error; err != nil {
-				return fmt.Errorf("failed to upsert SH daily data: %w", err)
-			}
+		if err := r.upsertDataInBatches("daily_data_sh", shData); err != nil {
+			return fmt.Errorf("failed to upsert SH daily data: %w", err)
 		}
 		logger.Infof("Upserted %d SH daily data records", len(shData))
 	}
 
+	// 分批处理深圳交易所数据
 	if len(szData) > 0 {
-		for _, item := range szData {
-			if err := r.db.Table("daily_data_sz").Save(&item).Error; err != nil {
-				return fmt.Errorf("failed to upsert SZ daily data: %w", err)
-			}
+		if err := r.upsertDataInBatches("daily_data_sz", szData); err != nil {
+			return fmt.Errorf("failed to upsert SZ daily data: %w", err)
 		}
 		logger.Infof("Upserted %d SZ daily data records", len(szData))
+	}
+
+	return nil
+}
+
+// upsertDataInBatches 分批执行 upsert 操作
+func (r *DailyData) upsertDataInBatches(tableName string, data []model.DailyData) error {
+	const batchSize = 500 // 每批处理500条记录
+
+	for i := 0; i < len(data); i += batchSize {
+		end := i + batchSize
+		if end > len(data) {
+			end = len(data)
+		}
+
+		batch := data[i:end]
+
+		// 使用 ON DUPLICATE KEY UPDATE 进行批量 upsert
+		if err := r.db.Table(tableName).Save(&batch).Error; err != nil {
+			return fmt.Errorf("failed to upsert batch %d-%d: %w", i, end-1, err)
+		}
+
+		logger.Debugf("Upserted batch %d-%d (%d records) to %s", i, end-1, len(batch), tableName)
 	}
 
 	return nil

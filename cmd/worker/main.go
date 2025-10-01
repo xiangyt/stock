@@ -72,7 +72,7 @@ func main() {
 	logger.Info("Worker exited")
 }
 
-const maxConcurrent = 2 // 最大并发量
+const maxConcurrent = 100 // 最大并发量
 func setupCronJobs(c *cron.Cron, services *service.Services) {
 	// 每天早上8点执行主要任务
 	c.AddFunc("0 0 8 * * *", func() {

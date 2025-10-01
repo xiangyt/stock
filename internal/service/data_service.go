@@ -162,20 +162,20 @@ func (s *DataService) SyncDailyData(tsCode string, startDate, endDate time.Time)
 	s.logger.Infof("开始同步股票 %s 的日K线数据，时间范围: %s 到 %s",
 		tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
 
-	// 创建东方财富采集器
-	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeEastMoney)
+	// 创建采集器
+	dataCollector, err := s.collectorFactory.CreateCollector(collector.CollectorTypeTongHuaShun)
 	if err != nil {
 		return 0, fmt.Errorf("创建采集器失败: %v", err)
 	}
 
 	// 连接数据源
-	if err := eastMoney.Connect(); err != nil {
+	if err := dataCollector.Connect(); err != nil {
 		return 0, fmt.Errorf("连接数据源失败: %v", err)
 	}
-	defer eastMoney.Disconnect()
+	defer dataCollector.Disconnect()
 
 	// 获取日K线数据
-	klineData, err := eastMoney.GetDailyKLine(tsCode, startDate, endDate)
+	klineData, err := dataCollector.GetDailyKLine(tsCode, startDate, endDate)
 	if err != nil {
 		return 0, fmt.Errorf("获取日K线数据失败: %v", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"stock/internal/database"
 	"stock/internal/logger"
 	"stock/internal/model"
+	"stock/internal/repository"
 	"stock/internal/utils"
 	"testing"
 	"time"
@@ -85,14 +86,24 @@ func TestDailyKLineCollection1(t *testing.T) {
 		return
 	}
 
+	dd := repository.NewDailyData(db)
 	// 从数据库获取所有股票列表
 	stocks, err := services.DataService.GetAllStocks()
 	if err != nil {
 		logger.Errorf("获取股票列表失败: %v", err)
 		return
 	}
-
-	executor := utils.NewConcurrentExecutor(1000, 45*time.Minute) // 最大100个并发，30分钟超时
+	//stocks = []*model.Stock{
+	//	{
+	//		TsCode:    "001208.SZ",
+	//		Symbol:    "001208",
+	//		Name:      "华菱线缆",
+	//		IsActive:  true,
+	//		CreatedAt: time.Now(),
+	//		UpdatedAt: time.Now(),
+	//	},
+	//}
+	executor := utils.NewConcurrentExecutor(100, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -111,8 +122,9 @@ func TestDailyKLineCollection1(t *testing.T) {
 			Description: fmt.Sprintf("采集股票 %s 的日K线数据", stock.TsCode),
 			Func: func(ctx context.Context) error {
 
+				st := time.Date(1990, 1, 1, 0, 0, 0, 0, time.Local)
 				// 获取日K线数据
-				klineData, err := c.GetDailyKLine(stock.TsCode, time.Time{}, time.Now())
+				klineData, err := c.GetDailyKLine(stock.TsCode, st, time.Now())
 				if err != nil {
 					return fmt.Errorf("获取日K线数据失败: %v", err)
 				}
@@ -120,6 +132,11 @@ func TestDailyKLineCollection1(t *testing.T) {
 				if len(klineData) == 0 {
 					logger.Debugf("股票 %s 在指定时间范围内没有日K线数据", stock.TsCode)
 					return nil
+				}
+
+				// 批量保存数据
+				if err := dd.UpsertDailyData(klineData); err != nil {
+					return fmt.Errorf("保存日K线数据失败: %v", err)
 				}
 				return nil
 			},
