@@ -1,6 +1,8 @@
 package model
 
 import (
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -39,11 +41,23 @@ type DailyData struct {
 
 // TableName 指定表名 - 根据股票代码动态选择表名
 func (d DailyData) TableName() string {
-	// 根据股票代码判断交易所
-	if d.getExchange() == "SH" {
-		return "daily_data_sh"
+	// 提取股票代码的前三位数字
+	var prefix string
+	if len(d.TsCode) >= 3 {
+		// 处理带后缀的情况，如 "000001.SZ"
+		code := strings.Split(d.TsCode, ".")[0]
+		if len(code) >= 3 {
+			prefix = code[:3]
+		}
 	}
-	return "daily_data_sz"
+
+	// 根据前三位确定表名
+	switch prefix {
+	case "000", "001", "002", "300", "301", "600", "601", "603", "605", "688":
+		return fmt.Sprintf("daily_data_%s", prefix)
+	default:
+		return "daily_data_other"
+	}
 }
 
 // getExchange 根据股票代码获取交易所类型

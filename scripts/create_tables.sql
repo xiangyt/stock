@@ -12,6 +12,17 @@ DROP TABLE IF EXISTS `yearly_data`;
 DROP TABLE IF EXISTS `quarterly_data`;
 DROP TABLE IF EXISTS `monthly_data`;
 DROP TABLE IF EXISTS `weekly_data`;
+DROP TABLE IF EXISTS `daily_data_other`;
+DROP TABLE IF EXISTS `daily_data_688`;
+DROP TABLE IF EXISTS `daily_data_605`;
+DROP TABLE IF EXISTS `daily_data_603`;
+DROP TABLE IF EXISTS `daily_data_601`;
+DROP TABLE IF EXISTS `daily_data_600`;
+DROP TABLE IF EXISTS `daily_data_301`;
+DROP TABLE IF EXISTS `daily_data_300`;
+DROP TABLE IF EXISTS `daily_data_002`;
+DROP TABLE IF EXISTS `daily_data_001`;
+DROP TABLE IF EXISTS `daily_data_000`;
 DROP TABLE IF EXISTS `daily_data_sz`;
 DROP TABLE IF EXISTS `daily_data_sh`;
 DROP TABLE IF EXISTS `stocks`;
@@ -36,25 +47,8 @@ CREATE TABLE `stocks` (
   KEY `idx_stocks_is_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='股票基础信息表 - A股市场';
 
--- 2. 日线数据表 - 上海交易所
-CREATE TABLE `daily_data_sh` (
-  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：600000.SH',
-  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
-  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
-  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
-  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
-  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
-  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
-  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
-  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
-  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
-  PRIMARY KEY (`ts_code`,`trade_date`),
-  KEY `idx_daily_sh_trade_date` (`trade_date`),
-  KEY `idx_daily_sh_ts_code_date` (`ts_code`,`trade_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 上海交易所';
-
--- 3. 日线数据表 - 深圳交易所
-CREATE TABLE `daily_data_sz` (
+-- 2. 日线数据表 - 000开头股票（深交所主板）
+CREATE TABLE `daily_data_000` (
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
   `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
   `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
@@ -66,11 +60,181 @@ CREATE TABLE `daily_data_sz` (
   `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
   `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
   PRIMARY KEY (`ts_code`,`trade_date`),
-  KEY `idx_daily_sz_trade_date` (`trade_date`),
-  KEY `idx_daily_sz_ts_code_date` (`ts_code`,`trade_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 深圳交易所';
+  KEY `idx_daily_000_trade_date` (`trade_date`),
+  KEY `idx_daily_000_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 000开头股票（深交所主板）';
 
--- 4. 周K线数据表
+-- 3. 日线数据表 - 001开头股票（深交所主板）
+CREATE TABLE `daily_data_001` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：001979.SZ',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_001_trade_date` (`trade_date`),
+  KEY `idx_daily_001_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 001开头股票（深交所主板）';
+
+-- 4. 日线数据表 - 002开头股票（深交所中小板）
+CREATE TABLE `daily_data_002` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：002415.SZ',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_002_trade_date` (`trade_date`),
+  KEY `idx_daily_002_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 002开头股票（深交所中小板）';
+
+-- 5. 日线数据表 - 300开头股票（深交所创业板）
+CREATE TABLE `daily_data_300` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：300750.SZ',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_300_trade_date` (`trade_date`),
+  KEY `idx_daily_300_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 300开头股票（深交所创业板）';
+
+-- 6. 日线数据表 - 301开头股票（深交所创业板）
+CREATE TABLE `daily_data_301` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：301088.SZ',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_301_trade_date` (`trade_date`),
+  KEY `idx_daily_301_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 301开头股票（深交所创业板）';
+
+-- 7. 日线数据表 - 600开头股票（上交所主板）
+CREATE TABLE `daily_data_600` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：600000.SH',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_600_trade_date` (`trade_date`),
+  KEY `idx_daily_600_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 600开头股票（上交所主板）';
+
+-- 8. 日线数据表 - 601开头股票（上交所主板）
+CREATE TABLE `daily_data_601` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：601318.SH',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_601_trade_date` (`trade_date`),
+  KEY `idx_daily_601_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 601开头股票（上交所主板）';
+
+-- 9. 日线数据表 - 603开头股票（上交所主板）
+CREATE TABLE `daily_data_603` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：603259.SH',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_603_trade_date` (`trade_date`),
+  KEY `idx_daily_603_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 603开头股票（上交所主板）';
+
+-- 10. 日线数据表 - 605开头股票（上交所主板）
+CREATE TABLE `daily_data_605` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：605499.SH',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_605_trade_date` (`trade_date`),
+  KEY `idx_daily_605_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 605开头股票（上交所主板）';
+
+-- 11. 日线数据表 - 688开头股票（上交所科创板）
+CREATE TABLE `daily_data_688` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：688981.SH',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_688_trade_date` (`trade_date`),
+  KEY `idx_daily_688_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 688开头股票（上交所科创板）';
+
+-- 12. 日线数据表 - 其他股票
+CREATE TABLE `daily_data_other` (
+  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：其他前缀的股票',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `open` decimal(10,3) DEFAULT NULL COMMENT '开盘价，单位：元',
+  `high` decimal(10,3) DEFAULT NULL COMMENT '最高价，单位：元',
+  `low` decimal(10,3) DEFAULT NULL COMMENT '最低价，单位：元',
+  `close` decimal(10,3) DEFAULT NULL COMMENT '收盘价，单位：元',
+  `volume` bigint DEFAULT NULL COMMENT '成交量，单位：股（A股以股为单位）',
+  `amount` decimal(20,2) DEFAULT NULL COMMENT '成交额，单位：元',
+  `created_at` datetime(3) DEFAULT NULL COMMENT '记录创建时间戳',
+  `updated_at` datetime(3) DEFAULT NULL COMMENT '记录更新时间戳',
+  PRIMARY KEY (`ts_code`,`trade_date`),
+  KEY `idx_daily_other_trade_date` (`trade_date`),
+  KEY `idx_daily_other_ts_code_date` (`ts_code`,`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日线数据表 - 其他前缀股票';
+
+-- 13. 周K线数据表
 CREATE TABLE `weekly_data` (
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
   `trade_date` int NOT NULL COMMENT '周结束交易日期，YYYYMMDD格式，如：20250910',
@@ -87,7 +251,7 @@ CREATE TABLE `weekly_data` (
   KEY `idx_weekly_ts_code_date` (`ts_code`,`trade_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='周K线数据表 - A股周K线行情数据';
 
--- 5. 月K线数据表
+-- 14. 月K线数据表
 CREATE TABLE `monthly_data` (
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
   `trade_date` int NOT NULL COMMENT '月结束交易日期，YYYYMMDD格式，如：20250930',
@@ -104,7 +268,7 @@ CREATE TABLE `monthly_data` (
   KEY `idx_monthly_ts_code_date` (`ts_code`,`trade_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='月K线数据表 - A股月K线行情数据';
 
--- 6. 季K线数据表
+-- 15. 季K线数据表
 CREATE TABLE `quarterly_data` (
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
   `trade_date` int NOT NULL COMMENT '季结束交易日期，YYYYMMDD格式，如：20250930',
@@ -119,7 +283,7 @@ CREATE TABLE `quarterly_data` (
   PRIMARY KEY (`ts_code`,`trade_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='季K线数据表 - A股季K线行情数据';
 
--- 7. 年K线数据表
+-- 16. 年K线数据表
 CREATE TABLE `yearly_data` (
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
   `trade_date` int NOT NULL COMMENT '年结束交易日期，YYYYMMDD格式，如：20251231',
@@ -134,7 +298,7 @@ CREATE TABLE `yearly_data` (
   PRIMARY KEY (`ts_code`,`trade_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='年K线数据表 - A股年K线行情数据';
 
--- 8. 技术指标表
+-- 17. 技术指标表
 CREATE TABLE `technical_indicators` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID，数据库自增',
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
@@ -157,7 +321,7 @@ CREATE TABLE `technical_indicators` (
   KEY `idx_tech_ts_code_date` (`ts_code`,`trade_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='技术指标表 - A股技术分析指标';
 
--- 9. 业绩报表表
+-- 18. 业绩报表表
 CREATE TABLE `performance_reports` (
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
   `report_date` int NOT NULL COMMENT '报告期，YYYYMMDD格式，如：20250630',
@@ -182,7 +346,7 @@ CREATE TABLE `performance_reports` (
   KEY `idx_perf_revenue` (`revenue`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='业绩报表表 - A股上市公司业绩报表数据';
 
--- 10. 股东户数表
+-- 19. 股东户数表
 CREATE TABLE `shareholder_counts` (
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
   `end_date` int NOT NULL COMMENT '统计截止日期，YYYYMMDD格式，如：20250630',
@@ -210,7 +374,7 @@ CREATE TABLE `shareholder_counts` (
   CONSTRAINT `fk_shareholder_counts_stock` FOREIGN KEY (`ts_code`) REFERENCES `stocks` (`ts_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='股东户数表 - A股上市公司股东户数数据';
 
--- 11. 选股结果表
+-- 20. 选股结果表
 CREATE TABLE `selection_results` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID，数据库自增',
   `strategy_name` varchar(50) NOT NULL COMMENT '选股策略名称，如：technical、fundamental、combined',
@@ -227,7 +391,7 @@ CREATE TABLE `selection_results` (
   CONSTRAINT `fk_selection_results_stock` FOREIGN KEY (`ts_code`) REFERENCES `stocks` (`ts_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='选股结果表 - A股选股策略执行结果';
 
--- 12. 回测结果表
+-- 21. 回测结果表
 CREATE TABLE `backtest_results` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID，数据库自增',
   `strategy_name` varchar(50) NOT NULL COMMENT '回测策略名称，如：technical、fundamental',

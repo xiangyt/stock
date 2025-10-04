@@ -89,8 +89,7 @@ func NewConcurrentExecutor(maxConcurrency int, timeout time.Duration) *Concurren
 // Execute 执行单个任务
 func (ce *ConcurrentExecutor) Execute(ctx context.Context, task Task) *TaskResult {
 	result := &TaskResult{
-		TaskID:    task.GetID(),
-		StartTime: time.Now(),
+		TaskID: task.GetID(),
 	}
 
 	// 获取信号量
@@ -98,6 +97,7 @@ func (ce *ConcurrentExecutor) Execute(ctx context.Context, task Task) *TaskResul
 	case ce.semaphore <- struct{}{}:
 		defer func() { <-ce.semaphore }()
 	case <-ctx.Done():
+		result.StartTime = time.Now()
 		result.Error = ctx.Err()
 		result.EndTime = time.Now()
 		result.Duration = result.EndTime.Sub(result.StartTime)
@@ -109,7 +109,7 @@ func (ce *ConcurrentExecutor) Execute(ctx context.Context, task Task) *TaskResul
 	defer cancel()
 
 	ce.logger.Infof("开始执行任务: %s - %s", task.GetID(), task.GetDescription())
-
+	result.StartTime = time.Now()
 	// 执行任务
 	err := task.Execute(taskCtx)
 

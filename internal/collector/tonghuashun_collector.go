@@ -737,7 +737,7 @@ func (t *TongHuaShunCollector) parseDailyKLineResponse(tsCode, res string, start
 				daily.Open = float64(low+open) / 100
 				daily.High = float64(low+high) / 100
 				daily.Close = float64(low+over) / 100
-				daily.Volume = volume / 100
+				daily.Volume = volume
 				dailyData = append(dailyData, daily)
 			}
 			num--

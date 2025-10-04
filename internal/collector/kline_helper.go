@@ -36,7 +36,7 @@ func (p *KLineParser) ParseToDaily(tsCode, kline string) (*model.DailyData, erro
 		High:      p.parseFloat(fields[3]),
 		Low:       p.parseFloat(fields[4]),
 		Close:     p.parseFloat(fields[2]),
-		Volume:    p.parseInt64(fields[5]),
+		Volume:    p.parseInt64(fields[5]) * 100,
 		Amount:    p.parseFloat(fields[6]),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
