@@ -200,7 +200,7 @@ func (s *DataService) SyncWeeklyData(tsCode string, startDate, endDate time.Time
 		tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
 
 	// 创建东方财富采集器
-	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeEastMoney)
+	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeTongHuaShun)
 	if err != nil {
 		return 0, fmt.Errorf("创建采集器失败: %v", err)
 	}
@@ -250,7 +250,7 @@ func (s *DataService) SyncMonthlyData(tsCode string, startDate, endDate time.Tim
 		tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
 
 	// 创建东方财富采集器
-	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeEastMoney)
+	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeTongHuaShun)
 	if err != nil {
 		return 0, fmt.Errorf("创建采集器失败: %v", err)
 	}
@@ -300,19 +300,19 @@ func (s *DataService) SyncYearlyData(tsCode string, startDate, endDate time.Time
 		tsCode, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
 
 	// 创建东方财富采集器
-	eastMoney, err := s.collectorFactory.CreateCollector(collector.CollectorTypeEastMoney)
+	dataCollector, err := s.collectorFactory.CreateCollector(collector.CollectorTypeTongHuaShun)
 	if err != nil {
 		return 0, fmt.Errorf("创建采集器失败: %v", err)
 	}
 
 	// 连接数据源
-	if err := eastMoney.Connect(); err != nil {
+	if err := dataCollector.Connect(); err != nil {
 		return 0, fmt.Errorf("连接数据源失败: %v", err)
 	}
-	defer eastMoney.Disconnect()
+	defer dataCollector.Disconnect()
 
 	// 获取年K线数据
-	klineData, err := eastMoney.GetYearlyKLine(tsCode, startDate, endDate)
+	klineData, err := dataCollector.GetYearlyKLine(tsCode, startDate, endDate)
 	if err != nil {
 		return 0, fmt.Errorf("获取年K线数据失败: %v", err)
 	}

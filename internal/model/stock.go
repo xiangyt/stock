@@ -105,9 +105,25 @@ type WeeklyData struct {
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
 }
 
-// TableName 指定表名
-func (WeeklyData) TableName() string {
-	return "weekly_data"
+// TableName 指定表名 - 根据股票代码动态选择表名
+func (w WeeklyData) TableName() string {
+	// 提取股票代码的前三位数字
+	var prefix string
+	if len(w.TsCode) >= 3 {
+		// 处理带后缀的情况，如 "000001.SZ"
+		code := strings.Split(w.TsCode, ".")[0]
+		if len(code) >= 3 {
+			prefix = code[:3]
+		}
+	}
+
+	// 根据前三位确定表名
+	switch prefix {
+	case "000", "001", "002", "300", "301", "600", "601", "603", "605", "688":
+		return fmt.Sprintf("weekly_data_%s", prefix)
+	default:
+		return "weekly_data_other"
+	}
 }
 
 // MonthlyData 月K线数据模型 - A股月K线行情数据
@@ -124,9 +140,25 @@ type MonthlyData struct {
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
 }
 
-// TableName 指定表名
-func (MonthlyData) TableName() string {
-	return "monthly_data"
+// TableName 指定表名 - 根据股票代码动态选择表名
+func (m MonthlyData) TableName() string {
+	// 提取股票代码的前三位数字
+	var prefix string
+	if len(m.TsCode) >= 3 {
+		// 处理带后缀的情况，如 "000001.SZ"
+		code := strings.Split(m.TsCode, ".")[0]
+		if len(code) >= 3 {
+			prefix = code[:3]
+		}
+	}
+
+	// 根据前三位确定表名
+	switch prefix {
+	case "000", "001", "002", "300", "301", "600", "601", "603", "605", "688":
+		return fmt.Sprintf("monthly_data_%s", prefix)
+	default:
+		return "monthly_data_other"
+	}
 }
 
 // QuarterlyData 季K线数据模型 - A股季K线行情数据

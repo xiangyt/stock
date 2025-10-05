@@ -6,9 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
 	"stock/internal/model"
 	"stock/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 // KLinePersistenceService K线数据持久化服务
@@ -53,12 +54,12 @@ func (s *KLinePersistenceService) SaveDailyData(data model.DailyData) error {
 
 // SaveWeeklyData 保存周K线数据 (使用Upsert)
 func (s *KLinePersistenceService) SaveWeeklyData(data model.WeeklyData) error {
-	return s.weeklyRepo.Upsert(&data)
+	return s.weeklyRepo.SaveWeeklyData([]model.WeeklyData{data})
 }
 
 // SaveMonthlyData 保存月K线数据 (使用Upsert)
 func (s *KLinePersistenceService) SaveMonthlyData(data model.MonthlyData) error {
-	return s.monthlyRepo.Upsert(&data)
+	return s.monthlyRepo.SaveMonthlyData([]model.MonthlyData{data})
 }
 
 // SaveYearlyData 保存年K线数据 (使用Upsert)
@@ -73,12 +74,12 @@ func (s *KLinePersistenceService) BatchSaveDailyData(dataList []model.DailyData)
 
 // BatchSaveWeeklyData 批量保存周K线数据 (使用BatchUpsert)
 func (s *KLinePersistenceService) BatchSaveWeeklyData(dataList []model.WeeklyData) error {
-	return s.weeklyRepo.BatchUpsert(dataList)
+	return s.weeklyRepo.SaveWeeklyData(dataList)
 }
 
 // BatchSaveMonthlyData 批量保存月K线数据 (使用BatchUpsert)
 func (s *KLinePersistenceService) BatchSaveMonthlyData(dataList []model.MonthlyData) error {
-	return s.monthlyRepo.BatchUpsert(dataList)
+	return s.monthlyRepo.SaveMonthlyData(dataList)
 }
 
 // BatchSaveYearlyData 批量保存年K线数据 (使用BatchUpsert)
@@ -93,12 +94,12 @@ func (s *KLinePersistenceService) GetDailyData(tsCode string, startDate, endDate
 
 // GetWeeklyData 获取周K线数据
 func (s *KLinePersistenceService) GetWeeklyData(tsCode string, startDate, endDate time.Time, limit int) ([]model.WeeklyData, error) {
-	return s.weeklyRepo.GetWeeklyDataByTsCode(tsCode, startDate, endDate, limit)
+	return s.weeklyRepo.GetWeeklyData(tsCode, startDate, endDate, limit)
 }
 
 // GetMonthlyData 获取月K线数据
 func (s *KLinePersistenceService) GetMonthlyData(tsCode string, startDate, endDate time.Time, limit int) ([]model.MonthlyData, error) {
-	return s.monthlyRepo.GetMonthlyDataByTsCode(tsCode, startDate, endDate, limit)
+	return s.monthlyRepo.GetMonthlyData(tsCode, startDate, endDate, limit)
 }
 
 // GetYearlyData 获取年K线数据

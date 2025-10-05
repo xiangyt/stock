@@ -182,6 +182,53 @@ func TestSyncStockDailyKLine(t *testing.T) {
 	syncStockDailyKLine(services, &model.Stock{TsCode: "000026.SZ"})
 }
 
+func TestWeeklyKLineCollection(t *testing.T) {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// 初始化数据库连接
+	dbManager, err := database.NewDatabase(&cfg.Database, logger.GetGlobalLogger())
+	if err != nil {
+		logger.Fatalf("Failed to connect to database: %v", err)
+	}
+	db := dbManager.DB
+
+	// 初始化服务
+	services, err := initServicesWithDB(cfg, db)
+	if err != nil {
+		logger.Fatalf("Failed to initialize services: %v", err)
+	}
+
+	collectAndPersistWeeklyKLineData(services)
+	//syncStockYearlyKLine(services, &model.Stock{TsCode: "001208.SZ"})
+
+}
+func TestMonthlyKLineCollection(t *testing.T) {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// 初始化数据库连接
+	dbManager, err := database.NewDatabase(&cfg.Database, logger.GetGlobalLogger())
+	if err != nil {
+		logger.Fatalf("Failed to connect to database: %v", err)
+	}
+	db := dbManager.DB
+
+	// 初始化服务
+	services, err := initServicesWithDB(cfg, db)
+	if err != nil {
+		logger.Fatalf("Failed to initialize services: %v", err)
+	}
+
+	collectAndPersistMonthlyKLineData(services)
+	//syncStockYearlyKLine(services, &model.Stock{TsCode: "001208.SZ"})
+
+}
+
 func TestYearlyKLineCollection(t *testing.T) {
 	cfg, err := config.Load()
 	if err != nil {
