@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -50,6 +51,9 @@ func (r *Performance) GetLatestByTsCode(tsCode string) (*model.PerformanceReport
 		Order("report_date DESC").
 		First(&report).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &report, nil
@@ -110,7 +114,7 @@ func (r *Performance) UpsertBatch(reports []model.PerformanceReport) error {
 			err := tx.Where("ts_code = ? AND report_date = ?", report.TsCode, report.ReportDate).
 				First(&existingReport).Error
 
-			if err == gorm.ErrRecordNotFound {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// 记录不存在，创建新记录
 				if err := tx.Create(&report).Error; err != nil {
 					return fmt.Errorf("failed to create performance report for %s: %w", report.TsCode, err)

@@ -244,39 +244,38 @@ func (SelectionResult) TableName() string {
 
 // PerformanceReport 业绩报表模型 - A股上市公司业绩报表数据
 type PerformanceReport struct {
-	TsCode     string `json:"ts_code" gorm:"size:20;not null;primaryKey"` // 股票代码，如：000001.SZ，联合主键1
-	ReportDate int    `json:"report_date" gorm:"not null;primaryKey"`     // 报告期，YYYYMMDD格式，如：20250630，联合主键2
+	TsCode     string `json:"ts_code" gorm:"column:ts_code;size:20;not null;primaryKey"` // 股票代码，如：000001.SZ，联合主键1
+	ReportDate int    `json:"report_date" gorm:"column:report_date;not null;primaryKey"` // 报告期，YYYYMMDD格式，如：20250630，联合主键2
 
 	// 每股收益相关
-	EPS float64 `json:"eps" gorm:"type:decimal(10,4)"` // 每股收益，单位：元
-	//EPSYoY    float64 `json:"eps_yoy" gorm:"type:decimal(8,4)"`     // 每股收益同比增长，单位：%
-	WeightEPS float64 `json:"weight_eps" gorm:"type:decimal(10,4)"` // 加权每股收益，单位：元
+	EPS       float64 `json:"eps" gorm:"column:eps;type:decimal(10,4)"`               // 每股收益，单位：元
+	WeightEPS float64 `json:"weight_eps" gorm:"column:weight_eps;type:decimal(10,4)"` // 加权每股收益，单位：元
 
 	// 营业收入相关
-	Revenue    float64 `json:"revenue" gorm:"type:decimal(20,2)"`    // 营业总收入，单位：元
-	RevenueQoQ float64 `json:"revenue_qoq" gorm:"type:decimal(8,4)"` // 营业总收入同比增长，单位：%
-	RevenueYoY float64 `json:"revenue_yoy" gorm:"type:decimal(8,4)"` // 营业总收入季度环比增长，单位：%
+	Revenue    float64 `json:"revenue" gorm:"column:revenue;type:decimal(20,2)"`        // 营业总收入，单位：元
+	RevenueQoQ float64 `json:"revenue_qoq" gorm:"column:revenue_qoq;type:decimal(8,4)"` // 营业总收入同比增长，单位：%
+	RevenueYoY float64 `json:"revenue_yoy" gorm:"column:revenue_yoy;type:decimal(8,4)"` // 营业总收入季度环比增长，单位：%
 
 	// 净利润相关
-	NetProfit    float64 `json:"net_profit" gorm:"type:decimal(20,2)"`    // 净利润，单位：元
-	NetProfitQoQ float64 `json:"net_profit_qoq" gorm:"type:decimal(8,4)"` // 净利润同比增长，单位：%
-	NetProfitYoY float64 `json:"net_profit_yoy" gorm:"type:decimal(8,4)"` // 净利润季度环比增长，单位：%
+	NetProfit    float64 `json:"net_profit" gorm:"column:net_profit;type:decimal(20,2)"`        // 净利润，单位：元
+	NetProfitQoQ float64 `json:"net_profit_qoq" gorm:"column:net_profit_qoq;type:decimal(8,4)"` // 净利润同比增长，单位：%
+	NetProfitYoY float64 `json:"net_profit_yoy" gorm:"column:net_profit_yoy;type:decimal(8,4)"` // 净利润季度环比增长，单位：%
 
 	// 每股净资产
-	BVPS float64 `json:"bvps" gorm:"type:decimal(10,4)"` // 每股净资产，单位：元
+	BVPS float64 `json:"bvps" gorm:"column:bvps;type:decimal(10,4)"` // 每股净资产，单位：元
 
 	// 销售毛利率
-	GrossMargin float64 `json:"gross_margin" gorm:"type:decimal(8,4)"` // 销售毛利率，单位：%
+	GrossMargin float64 `json:"gross_margin" gorm:"column:gross_margin;type:decimal(8,4)"` // 销售毛利率，单位：%
 
 	// 股息率
-	DividendYield float64 `json:"dividend_yield" gorm:"type:decimal(8,4)"` // 股息率，单位：%
+	DividendYield float64 `json:"dividend_yield" gorm:"column:dividend_yield;type:decimal(8,4)"` // 股息率，单位：%
 
 	// 最新公告日期
-	LatestAnnouncementDate *time.Time `json:"latest_announcement_date"` // 最新公告日期
-	FirstAnnouncementDate  *time.Time `json:"first_announcement_date"`  // 首次公告日期
+	LatestAnnouncementDate *time.Time `json:"latest_announcement_date" gorm:"column:latest_announcement_date;type:datetime(3)"` // 最新公告日期
+	FirstAnnouncementDate  *time.Time `json:"first_announcement_date" gorm:"column:first_announcement_date;type:datetime(3)"`   // 首次公告日期
 
-	CreatedAt time.Time `json:"created_at"` // 记录创建时间
-	UpdatedAt time.Time `json:"updated_at"` // 记录更新时间
+	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;type:datetime(3)"` // 记录创建时间
+	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;type:datetime(3)"` // 记录更新时间
 }
 
 // TableName 指定表名
@@ -307,25 +306,25 @@ func (BacktestResult) TableName() string {
 
 // ShareholderCount 股东户数模型 - A股上市公司股东户数数据
 type ShareholderCount struct {
-	TsCode          string     `json:"ts_code" gorm:"size:20;not null;primaryKey"` // 股票代码，如：000001.SZ，联合主键1
-	EndDate         int        `json:"end_date" gorm:"not null;primaryKey"`        // 统计截止日期，YYYYMMDD格式，如：20250630，联合主键2
-	SecurityCode    string     `json:"security_code" gorm:"size:10;not null"`      // 证券代码，如：000001
-	SecurityName    string     `json:"security_name" gorm:"size:100;not null"`     // 证券简称，如：平安银行
-	HolderNum       int64      `json:"holder_num" gorm:"not null"`                 // 股东户数，单位：户
-	PreHolderNum    int64      `json:"pre_holder_num"`                             // 上期股东户数，单位：户
-	HolderNumChange int64      `json:"holder_num_change"`                          // 股东户数变化，单位：户
-	HolderNumRatio  float64    `json:"holder_num_ratio" gorm:"type:decimal(8,4)"`  // 股东户数变化比例，单位：%
-	AvgMarketCap    float64    `json:"avg_market_cap" gorm:"type:decimal(15,2)"`   // 户均市值，单位：元
-	AvgHoldNum      float64    `json:"avg_hold_num" gorm:"type:decimal(15,2)"`     // 户均持股数，单位：股
-	TotalMarketCap  float64    `json:"total_market_cap" gorm:"type:decimal(20,2)"` // 总市值，单位：元
-	TotalAShares    int64      `json:"total_a_shares"`                             // 总股本，单位：股
-	IntervalChrate  float64    `json:"interval_chrate" gorm:"type:decimal(8,4)"`   // 区间涨跌幅，单位：%
-	ChangeShares    int64      `json:"change_shares"`                              // 股本变动，单位：股
-	ChangeReason    string     `json:"change_reason" gorm:"size:100"`              // 变动原因，如：发行融资
-	HoldNoticeDate  *time.Time `json:"hold_notice_date"`                           // 公告日期
-	PreEndDate      *int       `json:"pre_end_date"`                               // 上期截止日期，YYYYMMDD格式，如：20250331
-	CreatedAt       time.Time  `json:"created_at"`                                 // 记录创建时间
-	UpdatedAt       time.Time  `json:"updated_at"`                                 // 记录更新时间
+	TsCode          string     `json:"ts_code" gorm:"column:ts_code;size:20;not null;primaryKey"`          // 股票代码，如：000001.SZ，联合主键1
+	EndDate         int        `json:"end_date" gorm:"column:end_date;not null;primaryKey"`                // 统计截止日期，YYYYMMDD格式，如：20250630，联合主键2
+	SecurityCode    string     `json:"security_code" gorm:"column:security_code;size:10;not null"`         // 证券代码，如：000001
+	SecurityName    string     `json:"security_name" gorm:"column:security_name;size:100;not null"`        // 证券简称，如：平安银行
+	HolderNum       int64      `json:"holder_num" gorm:"column:holder_num;not null"`                       // 股东户数，单位：户
+	PreHolderNum    int64      `json:"pre_holder_num" gorm:"column:pre_holder_num"`                        // 上期股东户数，单位：户
+	HolderNumChange int64      `json:"holder_num_change" gorm:"column:holder_num_change"`                  // 股东户数变化，单位：户
+	HolderNumRatio  float64    `json:"holder_num_ratio" gorm:"column:holder_num_ratio;type:decimal(8,4)"`  // 股东户数变化比例，单位：%
+	AvgMarketCap    float64    `json:"avg_market_cap" gorm:"column:avg_market_cap;type:decimal(15,2)"`     // 户均市值，单位：元
+	AvgHoldNum      float64    `json:"avg_hold_num" gorm:"column:avg_hold_num;type:decimal(15,2)"`         // 户均持股数，单位：股
+	TotalMarketCap  float64    `json:"total_market_cap" gorm:"column:total_market_cap;type:decimal(20,2)"` // 总市值，单位：元
+	TotalAShares    int64      `json:"total_a_shares" gorm:"column:total_a_shares"`                        // 总股本，单位：股
+	IntervalChrate  float64    `json:"interval_chrate" gorm:"column:interval_chrate;type:decimal(8,4)"`    // 区间涨跌幅，单位：%
+	ChangeShares    int64      `json:"change_shares" gorm:"column:change_shares"`                          // 股本变动，单位：股
+	ChangeReason    string     `json:"change_reason" gorm:"column:change_reason;size:100"`                 // 变动原因，如：发行融资
+	HoldNoticeDate  *time.Time `json:"hold_notice_date" gorm:"column:hold_notice_date;type:datetime(3)"`   // 公告日期
+	PreEndDate      *int       `json:"pre_end_date" gorm:"column:pre_end_date"`                            // 上期截止日期，YYYYMMDD格式，如：20250331
+	CreatedAt       time.Time  `json:"created_at" gorm:"column:created_at;type:datetime(3)"`               // 记录创建时间
+	UpdatedAt       time.Time  `json:"updated_at" gorm:"column:updated_at;type:datetime(3)"`               // 记录更新时间
 
 	// 关联股票信息
 	Stock Stock `json:"stock" gorm:"foreignKey:TsCode;references:TsCode"` // 关联的股票基础信息

@@ -71,7 +71,7 @@ func (h *ShareholderHandler) GetLatestShareholderCount(c *gin.Context) {
 	// 转换股票代码格式
 	tsCode = utils.ConvertToTsCode(tsCode)
 
-	count, err := h.service.GetLatestShareholderCount(c.Request.Context(), tsCode)
+	count, err := h.service.GetLatestShareholderCount(tsCode)
 	if err != nil {
 		Error(c, http.StatusInternalServerError, "获取最新股东户数数据失败")
 		return

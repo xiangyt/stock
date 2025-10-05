@@ -131,9 +131,6 @@ func NewShareholderService(repo *repository.Shareholder, collector collector.Dat
 
 // SyncData 同步股东户数数据
 func (s *ShareholderService) SyncData(tsCode string) error {
-	// 确保股票代码格式正确
-	tsCode = utils.ConvertToTsCode(tsCode)
-
 	// 从采集器获取数据
 	counts, err := s.collector.GetShareholderCounts(tsCode)
 	if err != nil {
@@ -147,6 +144,7 @@ func (s *ShareholderService) SyncData(tsCode string) error {
 	// 转换为指针切片
 	countPtrs := make([]*model.ShareholderCount, len(counts))
 	for i, count := range counts {
+		count := count
 		countPtrs[i] = &count
 	}
 

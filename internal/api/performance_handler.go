@@ -285,14 +285,9 @@ func (h *PerformanceHandler) CreatePerformanceReport(c *gin.Context) {
 // @Success 200 {object} Response
 // @Failure 400 {object} Response
 // @Failure 500 {object} Response
-// @Router /api/v1/performance/{id} [put]
+// @Router /api/v1/performance/{code} [put]
 func (h *PerformanceHandler) UpdatePerformanceReport(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		Error(c, http.StatusBadRequest, "无效的记录ID")
-		return
-	}
+	code := c.Param("code")
 
 	var report model.PerformanceReport
 	if err := c.ShouldBindJSON(&report); err != nil {
@@ -300,8 +295,8 @@ func (h *PerformanceHandler) UpdatePerformanceReport(c *gin.Context) {
 		return
 	}
 
-	report.ID = uint(id)
-	err = h.service.UpdatePerformanceReport(c.Request.Context(), &report)
+	report.TsCode = code
+	err := h.service.UpdatePerformanceReport(c.Request.Context(), &report)
 	if err != nil {
 		Error(c, http.StatusInternalServerError, "更新业绩报表记录失败")
 		return

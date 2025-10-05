@@ -660,30 +660,91 @@ CREATE TABLE `yearly_data` (
   PRIMARY KEY (`ts_code`,`trade_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='年K线数据表 - A股年K线行情数据';
 
--- 37. 技术指标表
-CREATE TABLE `technical_indicators` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID，数据库自增',
-  `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
+-- 37. 技术指标表 - 日表
+CREATE TABLE `daily_technical_indicators` (
+  `symbol` varchar(10) NOT NULL COMMENT '股票代码，如：000001',
   `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
   `ma5` decimal(10,3) DEFAULT NULL COMMENT '5日移动平均线，单位：元，短期趋势指标',
   `ma10` decimal(10,3) DEFAULT NULL COMMENT '10日移动平均线，单位：元，短期趋势指标',
   `ma20` decimal(10,3) DEFAULT NULL COMMENT '20日移动平均线，单位：元，中期趋势指标',
   `ma60` decimal(10,3) DEFAULT NULL COMMENT '60日移动平均线，单位：元，长期趋势指标',
-  `rsi` decimal(8,4) DEFAULT NULL COMMENT '相对强弱指数，范围0-100，>70超买，<30超卖',
+  `rsi6` decimal(8,4) DEFAULT NULL COMMENT '6日相对强弱指数，范围0-100，>70超买，<30超卖',
+  `rsi12` decimal(8,4) DEFAULT NULL COMMENT '12日相对强弱指数，范围0-100，>70超买，<30超卖',
+  `rsi24` decimal(8,4) DEFAULT NULL COMMENT '24日相对强弱指数，范围0-100，>70超买，<30超卖',
   `macd` decimal(10,6) DEFAULT NULL COMMENT 'MACD指标，趋势跟踪指标，正值看涨，负值看跌',
-  `macd_signal` decimal(10,6) DEFAULT NULL COMMENT 'MACD信号线，MACD的EMA平滑线',
-  `macd_hist` decimal(10,6) DEFAULT NULL COMMENT 'MACD柱状图，MACD-Signal，反映趋势变化',
+  `macd_dif` decimal(10,6) DEFAULT NULL COMMENT 'MACD DIF线，快线减慢线的差值',
+  `macd_dea` decimal(10,6) DEFAULT NULL COMMENT 'MACD DEA线，DIF的EMA平滑线',
   `kdj_k` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标K值，范围0-100，随机指标',
   `kdj_d` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标D值，范围0-100，K值的平滑线',
   `kdj_j` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标J值，3K-2D，敏感度最高',
-  `created_at` bigint DEFAULT NULL COMMENT '记录创建时间戳',
-  PRIMARY KEY (`id`),
-  KEY `idx_tech_ts_code` (`ts_code`),
-  KEY `idx_tech_trade_date` (`trade_date`),
-  KEY `idx_tech_ts_code_date` (`ts_code`,`trade_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='技术指标表 - A股技术分析指标';
+  PRIMARY KEY (`symbol`,`trade_date`),
+  KEY `idx_daily_tech_trade_date` (`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日技术指标表 - A股日技术分析指标';
 
--- 38. 业绩报表表
+-- 38. 技术指标表 - 周表
+CREATE TABLE `weekly_technical_indicators` (
+  `symbol` varchar(10) NOT NULL COMMENT '股票代码，如：000001',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `ma5` decimal(10,3) DEFAULT NULL COMMENT '5周移动平均线，单位：元，短期趋势指标',
+  `ma10` decimal(10,3) DEFAULT NULL COMMENT '10周移动平均线，单位：元，短期趋势指标',
+  `ma20` decimal(10,3) DEFAULT NULL COMMENT '20周移动平均线，单位：元，中期趋势指标',
+  `ma60` decimal(10,3) DEFAULT NULL COMMENT '60周移动平均线，单位：元，长期趋势指标',
+  `rsi6` decimal(8,4) DEFAULT NULL COMMENT '6周相对强弱指数，范围0-100，>70超买，<30超卖',
+  `rsi12` decimal(8,4) DEFAULT NULL COMMENT '12周相对强弱指数，范围0-100，>70超买，<30超卖',
+  `rsi24` decimal(8,4) DEFAULT NULL COMMENT '24周相对强弱指数，范围0-100，>70超买，<30超卖',
+  `macd` decimal(10,6) DEFAULT NULL COMMENT 'MACD指标，趋势跟踪指标，正值看涨，负值看跌',
+  `macd_dif` decimal(10,6) DEFAULT NULL COMMENT 'MACD DIF线，快线减慢线的差值',
+  `macd_dea` decimal(10,6) DEFAULT NULL COMMENT 'MACD DEA线，DIF的EMA平滑线',
+  `kdj_k` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标K值，范围0-100，随机指标',
+  `kdj_d` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标D值，范围0-100，K值的平滑线',
+  `kdj_j` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标J值，3K-2D，敏感度最高',
+  PRIMARY KEY (`symbol`,`trade_date`),
+  KEY `idx_weekly_tech_trade_date` (`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='周技术指标表 - A股周技术分析指标';
+
+-- 39. 技术指标表 - 月表
+CREATE TABLE `monthly_technical_indicators` (
+  `symbol` varchar(10) NOT NULL COMMENT '股票代码，如：000001',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `ma5` decimal(10,3) DEFAULT NULL COMMENT '5月移动平均线，单位：元，短期趋势指标',
+  `ma10` decimal(10,3) DEFAULT NULL COMMENT '10月移动平均线，单位：元，短期趋势指标',
+  `ma20` decimal(10,3) DEFAULT NULL COMMENT '20月移动平均线，单位：元，中期趋势指标',
+  `ma60` decimal(10,3) DEFAULT NULL COMMENT '60月移动平均线，单位：元，长期趋势指标',
+  `rsi6` decimal(8,4) DEFAULT NULL COMMENT '6月相对强弱指数，范围0-100，>70超买，<30超卖',
+  `rsi12` decimal(8,4) DEFAULT NULL COMMENT '12月相对强弱指数，范围0-100，>70超买，<30超卖',
+  `rsi24` decimal(8,4) DEFAULT NULL COMMENT '24月相对强弱指数，范围0-100，>70超买，<30超卖',
+  `macd` decimal(10,6) DEFAULT NULL COMMENT 'MACD指标，趋势跟踪指标，正值看涨，负值看跌',
+  `macd_dif` decimal(10,6) DEFAULT NULL COMMENT 'MACD DIF线，快线减慢线的差值',
+  `macd_dea` decimal(10,6) DEFAULT NULL COMMENT 'MACD DEA线，DIF的EMA平滑线',
+  `kdj_k` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标K值，范围0-100，随机指标',
+  `kdj_d` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标D值，范围0-100，K值的平滑线',
+  `kdj_j` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标J值，3K-2D，敏感度最高',
+  PRIMARY KEY (`symbol`,`trade_date`),
+  KEY `idx_monthly_tech_trade_date` (`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='月技术指标表 - A股月技术分析指标';
+
+-- 40. 技术指标表 - 年表
+CREATE TABLE `yearly_technical_indicators` (
+  `symbol` varchar(10) NOT NULL COMMENT '股票代码，如：000001',
+  `trade_date` int NOT NULL COMMENT '交易日期，YYYYMMDD格式，如：20250910',
+  `ma5` decimal(10,3) DEFAULT NULL COMMENT '5年移动平均线，单位：元，短期趋势指标',
+  `ma10` decimal(10,3) DEFAULT NULL COMMENT '10年移动平均线，单位：元，短期趋势指标',
+  `ma20` decimal(10,3) DEFAULT NULL COMMENT '20年移动平均线，单位：元，中期趋势指标',
+  `ma60` decimal(10,3) DEFAULT NULL COMMENT '60年移动平均线，单位：元，长期趋势指标',
+  `rsi6` decimal(8,4) DEFAULT NULL COMMENT '6年相对强弱指数，范围0-100，>70超买，<30超卖',
+  `rsi12` decimal(8,4) DEFAULT NULL COMMENT '12年相对强弱指数，范围0-100，>70超买，<30超卖',
+  `rsi24` decimal(8,4) DEFAULT NULL COMMENT '24年相对强弱指数，范围0-100，>70超买，<30超卖',
+  `macd` decimal(10,6) DEFAULT NULL COMMENT 'MACD指标，趋势跟踪指标，正值看涨，负值看跌',
+  `macd_dif` decimal(10,6) DEFAULT NULL COMMENT 'MACD DIF线，快线减慢线的差值',
+  `macd_dea` decimal(10,6) DEFAULT NULL COMMENT 'MACD DEA线，DIF的EMA平滑线',
+  `kdj_k` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标K值，范围0-100，随机指标',
+  `kdj_d` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标D值，范围0-100，K值的平滑线',
+  `kdj_j` decimal(8,4) DEFAULT NULL COMMENT 'KDJ指标J值，3K-2D，敏感度最高',
+  PRIMARY KEY (`symbol`,`trade_date`),
+  KEY `idx_yearly_tech_trade_date` (`trade_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='年技术指标表 - A股年技术分析指标';
+
+-- 41. 业绩报表表
 CREATE TABLE `performance_reports` (
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
   `report_date` int NOT NULL COMMENT '报告期，YYYYMMDD格式，如：20250630',
@@ -708,7 +769,7 @@ CREATE TABLE `performance_reports` (
   KEY `idx_perf_revenue` (`revenue`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='业绩报表表 - A股上市公司业绩报表数据';
 
--- 39. 股东户数表
+-- 42. 股东户数表
 CREATE TABLE `shareholder_counts` (
   `ts_code` varchar(20) NOT NULL COMMENT '股票代码，如：000001.SZ',
   `end_date` int NOT NULL COMMENT '统计截止日期，YYYYMMDD格式，如：20250630',
@@ -736,7 +797,7 @@ CREATE TABLE `shareholder_counts` (
   CONSTRAINT `fk_shareholder_counts_stock` FOREIGN KEY (`ts_code`) REFERENCES `stocks` (`ts_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='股东户数表 - A股上市公司股东户数数据';
 
--- 40. 选股结果表
+-- 43. 选股结果表
 CREATE TABLE `selection_results` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID，数据库自增',
   `strategy_name` varchar(50) NOT NULL COMMENT '选股策略名称，如：technical、fundamental、combined',

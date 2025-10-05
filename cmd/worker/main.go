@@ -108,10 +108,16 @@ func setupCronJobs(c *cron.Cron, services *service.Services) {
 	})
 
 	c.AddFunc("0 10 22 * * *", func() {
+		if !work {
+			return
+		}
 		_ = collectAndPersistPerformanceReports(services)
 	})
 
 	c.AddFunc("0 10 23 * * *", func() {
+		if !work {
+			return
+		}
 		_ = collectAndPersistShareholderCounts(services)
 	})
 
@@ -686,14 +692,16 @@ func collectAndPersistPerformanceReports(services *service.Services) error {
 
 	// 创建并发任务列表
 	var tasks []utils.Task
-
+	// 一个月前
+	date := time.Now().AddDate(0, -1, 0)
 	for _, stock := range stocks {
-		// 只处理活跃股票
-		if !stock.IsActive {
-			logger.Debugf("股票 %s 不活跃，跳过业绩报表数据采集", stock.TsCode)
+		report, err := services.PerformanceService.GetLatestPerformanceReport(ctx, stock.TsCode)
+		if err != nil {
 			continue
 		}
-
+		if report != nil && report.UpdatedAt.After(date) { // 一个月内更新过，直接跳过
+			continue
+		}
 		// 为每只股票创建一个采集任务
 		tsCode := stock.TsCode // 捕获循环变量
 		task := &utils.SimpleTask{
@@ -704,6 +712,9 @@ func collectAndPersistPerformanceReports(services *service.Services) error {
 			},
 		}
 		tasks = append(tasks, task)
+		if len(tasks) >= 100 { // 一天只更新200条，防止封ip
+			break
+		}
 	}
 
 	// 执行任务
@@ -742,7 +753,7 @@ func collectAndPersistPerformanceReports(services *service.Services) error {
 func collectAndPersistShareholderCounts(services *service.Services) error {
 	logger.Info("开始采集股东人数数据...")
 
-	executor := utils.NewConcurrentExecutor(1, 45*time.Minute) // 最大50个并发，45分钟超时
+	executor := utils.NewConcurrentExecutor(maxConcurrent, 45*time.Minute) // 最大50个并发，45分钟超时
 	defer executor.Close()
 	ctx := context.Background()
 
@@ -756,11 +767,13 @@ func collectAndPersistShareholderCounts(services *service.Services) error {
 
 	// 创建并发任务列表
 	var tasks []utils.Task
-
+	date := time.Now().AddDate(0, 0, -7)
 	for _, stock := range stocks {
-		// 只处理活跃股票
-		if !stock.IsActive {
-			logger.Debugf("股票 %s 不活跃，跳过股东人数数据采集", stock.TsCode)
+		count, err := services.ShareholderService.GetLatestShareholderCount(stock.TsCode)
+		if err != nil {
+			continue
+		}
+		if count != nil && count.UpdatedAt.After(date) { // 7天内更新过，直接跳过
 			continue
 		}
 
@@ -774,6 +787,9 @@ func collectAndPersistShareholderCounts(services *service.Services) error {
 			},
 		}
 		tasks = append(tasks, task)
+		if len(tasks) >= 100 { // 一天只更新100条，防止封ip
+			break
+		}
 	}
 
 	if len(tasks) == 0 {

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 
 	"stock/internal/model"
@@ -41,6 +42,9 @@ func (r *Shareholder) GetLatest(tsCode string) (*model.ShareholderCount, error) 
 		Order("end_date DESC").
 		First(&count).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &count, nil
@@ -59,7 +63,7 @@ func (r *Shareholder) UpsertBatch(counts []*model.ShareholderCount) error {
 			err := tx.Where("ts_code = ? AND end_date = ?", count.TsCode, count.EndDate).
 				First(&existing).Error
 
-			if err == gorm.ErrRecordNotFound {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// 记录不存在，创建新记录
 				if err := tx.Create(count).Error; err != nil {
 					return fmt.Errorf("创建股东户数记录失败: %v", err)

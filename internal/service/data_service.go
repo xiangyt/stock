@@ -442,11 +442,11 @@ func (s *DataService) SyncRealtimeData(tsCodes []string) error {
 func (s *DataService) UpsertKLineData(data interface{}) error {
 	switch v := data.(type) {
 	case []model.DailyData:
-		return s.dailyDataRepo.SaveDailyData(v)
+		return s.dailyDataRepo.UpsertDailyData(v)
 	case []model.WeeklyData:
-		return s.weeklyDataRepo.SaveWeeklyData(v)
+		return s.weeklyDataRepo.UpsertWeeklyData(v)
 	case []model.MonthlyData:
-		return s.monthlyDataRepo.SaveMonthlyData(v)
+		return s.monthlyDataRepo.UpsertMonthlyData(v)
 	case []model.YearlyData:
 		return s.yearlyDataRepo.BatchUpsert(v)
 	default:

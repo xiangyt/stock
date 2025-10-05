@@ -78,31 +78,7 @@ func (s *PerformanceService) GetPerformanceReports(ctx context.Context, tsCode s
 
 // GetLatestPerformanceReport 获取最新业绩报表
 func (s *PerformanceService) GetLatestPerformanceReport(ctx context.Context, tsCode string) (*model.PerformanceReport, error) {
-	logger.Infof("Getting latest performance report for stock: %s", tsCode)
-
-	// 首先从数据库查询
-	report, err := s.repo.GetLatestByTsCode(tsCode)
-	if err != nil {
-		logger.Infof("No latest performance report found in database, fetching from collector")
-
-		// 从采集器获取最新数据
-		report, err = s.collector.GetLatestPerformanceReport(tsCode)
-		if err != nil {
-			logger.Errorf("Failed to get latest performance report from collector: %v", err)
-			return nil, fmt.Errorf("failed to fetch latest performance report: %w", err)
-		}
-
-		// 保存到数据库
-		if report != nil {
-			if err := s.repo.Create(report); err != nil {
-				logger.Warnf("Failed to save latest performance report to database: %v", err)
-			} else {
-				logger.Infof("Saved latest performance report to database")
-			}
-		}
-	}
-
-	return report, nil
+	return s.repo.GetLatestByTsCode(tsCode)
 }
 
 // SyncPerformanceReports 同步业绩报表数据

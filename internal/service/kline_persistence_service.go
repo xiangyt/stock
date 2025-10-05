@@ -49,17 +49,17 @@ func NewKLinePersistenceService(db *gorm.DB, logger *logger.Logger) *KLinePersis
 
 // SaveDailyData 保存日K线数据
 func (s *KLinePersistenceService) SaveDailyData(data model.DailyData) error {
-	return s.dailyDataRepo.SaveDailyData([]model.DailyData{data})
+	return s.dailyDataRepo.UpsertDailyData([]model.DailyData{data})
 }
 
 // SaveWeeklyData 保存周K线数据 (使用Upsert)
 func (s *KLinePersistenceService) SaveWeeklyData(data model.WeeklyData) error {
-	return s.weeklyRepo.SaveWeeklyData([]model.WeeklyData{data})
+	return s.weeklyRepo.UpsertWeeklyData([]model.WeeklyData{data})
 }
 
 // SaveMonthlyData 保存月K线数据 (使用Upsert)
 func (s *KLinePersistenceService) SaveMonthlyData(data model.MonthlyData) error {
-	return s.monthlyRepo.SaveMonthlyData([]model.MonthlyData{data})
+	return s.monthlyRepo.UpsertMonthlyData([]model.MonthlyData{data})
 }
 
 // SaveYearlyData 保存年K线数据 (使用Upsert)
@@ -69,17 +69,17 @@ func (s *KLinePersistenceService) SaveYearlyData(data model.YearlyData) error {
 
 // BatchSaveDailyData 批量保存日K线数据
 func (s *KLinePersistenceService) BatchSaveDailyData(dataList []model.DailyData) error {
-	return s.dailyDataRepo.SaveDailyData(dataList)
+	return s.dailyDataRepo.UpsertDailyData(dataList)
 }
 
 // BatchSaveWeeklyData 批量保存周K线数据 (使用BatchUpsert)
 func (s *KLinePersistenceService) BatchSaveWeeklyData(dataList []model.WeeklyData) error {
-	return s.weeklyRepo.SaveWeeklyData(dataList)
+	return s.weeklyRepo.UpsertWeeklyData(dataList)
 }
 
 // BatchSaveMonthlyData 批量保存月K线数据 (使用BatchUpsert)
 func (s *KLinePersistenceService) BatchSaveMonthlyData(dataList []model.MonthlyData) error {
-	return s.monthlyRepo.SaveMonthlyData(dataList)
+	return s.monthlyRepo.UpsertMonthlyData(dataList)
 }
 
 // BatchSaveYearlyData 批量保存年K线数据 (使用BatchUpsert)
