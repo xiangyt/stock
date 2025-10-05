@@ -444,3 +444,33 @@ func (h *HTTPCollector) GetYearlyKLine(tsCode string, startDate, endDate time.Ti
 	// HTTP采集器暂不支持年K线数据获取
 	return nil, fmt.Errorf("yearly K-line data not supported by HTTP collector")
 }
+
+// GetTodayData 获取当日数据 - 空实现
+func (h *HTTPCollector) GetTodayData(tsCode string) (*model.DailyData, string, error) {
+	h.logger.Infof("HTTP GetTodayData for %s - 功能暂未实现", tsCode)
+	return nil, "", fmt.Errorf("HTTP GetTodayData not implemented yet")
+}
+
+// GetThisWeekData 获取本周数据 - 空实现
+func (h *HTTPCollector) GetThisWeekData(tsCode string) (*model.WeeklyData, error) {
+	h.logger.Infof("HTTP GetThisWeekData for %s - 功能暂未实现", tsCode)
+	return nil, fmt.Errorf("HTTP GetThisWeekData not implemented yet")
+}
+
+// GetThisMonthData 获取本月数据 - 空实现
+func (h *HTTPCollector) GetThisMonthData(tsCode string) (*model.MonthlyData, error) {
+	h.logger.Infof("HTTP GetThisMonthData for %s - 功能暂未实现", tsCode)
+	return nil, fmt.Errorf("HTTP GetThisMonthData not implemented yet")
+}
+
+// GetThisQuarterData 获取本季数据 - 空实现
+func (h *HTTPCollector) GetThisQuarterData(tsCode string) (*model.QuarterlyData, error) {
+	h.logger.Infof("HTTP GetThisQuarterData for %s - 功能暂未实现", tsCode)
+	return nil, fmt.Errorf("HTTP GetThisQuarterData not implemented yet")
+}
+
+// GetThisYearData 获取本年数据 - 空实现
+func (h *HTTPCollector) GetThisYearData(tsCode string) (*model.YearlyData, error) {
+	h.logger.Infof("HTTP GetThisYearData for %s - 功能暂未实现", tsCode)
+	return nil, fmt.Errorf("HTTP GetThisYearData not implemented yet")
+}

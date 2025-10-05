@@ -37,6 +37,21 @@ type DataCollector interface {
 	// GetRealtimeData 获取实时数据
 	GetRealtimeData(tsCodes []string) ([]model.DailyData, error)
 
+	// GetTodayData 获取当日数据
+	GetTodayData(tsCode string) (*model.DailyData, string, error)
+
+	// GetThisWeekData 获取本周数据
+	GetThisWeekData(tsCode string) (*model.WeeklyData, error)
+
+	// GetThisMonthData 获取本月数据
+	GetThisMonthData(tsCode string) (*model.MonthlyData, error)
+
+	// GetThisQuarterData 获取本季数据
+	GetThisQuarterData(tsCode string) (*model.QuarterlyData, error)
+
+	// GetThisYearData 获取本年数据
+	GetThisYearData(tsCode string) (*model.YearlyData, error)
+
 	// GetPerformanceReports 获取业绩报表数据
 	GetPerformanceReports(tsCode string) ([]model.PerformanceReport, error)
 

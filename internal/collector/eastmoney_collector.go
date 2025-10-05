@@ -1343,3 +1343,33 @@ func (e *EastMoneyCollector) ForceUpdateUserAgentAndCookie() {
 	e.updateUserAgentAndCookie()
 	e.logger.Info("Forced update of User-Agent and Cookie")
 }
+
+// GetTodayData 获取当日数据 - 空实现
+func (e *EastMoneyCollector) GetTodayData(tsCode string) (*model.DailyData, string, error) {
+	e.logger.Infof("EastMoney GetTodayData for %s - 功能暂未实现", tsCode)
+	return nil, "", fmt.Errorf("EastMoney GetTodayData not implemented yet")
+}
+
+// GetThisWeekData 获取本周数据 - 空实现
+func (e *EastMoneyCollector) GetThisWeekData(tsCode string) (*model.WeeklyData, error) {
+	e.logger.Infof("EastMoney GetThisWeekData for %s - 功能暂未实现", tsCode)
+	return nil, fmt.Errorf("EastMoney GetThisWeekData not implemented yet")
+}
+
+// GetThisMonthData 获取本月数据 - 空实现
+func (e *EastMoneyCollector) GetThisMonthData(tsCode string) (*model.MonthlyData, error) {
+	e.logger.Infof("EastMoney GetThisMonthData for %s - 功能暂未实现", tsCode)
+	return nil, fmt.Errorf("EastMoney GetThisMonthData not implemented yet")
+}
+
+// GetThisQuarterData 获取本季数据 - 空实现
+func (e *EastMoneyCollector) GetThisQuarterData(tsCode string) (*model.QuarterlyData, error) {
+	e.logger.Infof("EastMoney GetThisQuarterData for %s - 功能暂未实现", tsCode)
+	return nil, fmt.Errorf("EastMoney GetThisQuarterData not implemented yet")
+}
+
+// GetThisYearData 获取本年数据 - 空实现
+func (e *EastMoneyCollector) GetThisYearData(tsCode string) (*model.YearlyData, error) {
+	e.logger.Infof("EastMoney GetThisYearData for %s - 功能暂未实现", tsCode)
+	return nil, fmt.Errorf("EastMoney GetThisYearData not implemented yet")
+}

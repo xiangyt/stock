@@ -649,6 +649,489 @@ func (t *TongHuaShunCollector) GetRealtimeData(tsCodes []string) ([]model.DailyD
 	return []model.DailyData{}, fmt.Errorf("TongHuaShun GetRealtimeData not implemented yet")
 }
 
+// GetTodayData 获取当日数据
+func (t *TongHuaShunCollector) GetTodayData(tsCode string) (*model.DailyData, string, error) {
+	t.logger.Infof("TongHuaShun GetTodayData for %s", tsCode)
+
+	// 解析股票代码
+	symbol, market, err := t.parseStockCode(tsCode)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid tsCode format: %s", tsCode)
+	}
+
+	// 构建同花顺股票代码格式
+	thsCode := t.buildTHSStockCode(symbol, market)
+	if thsCode == "" {
+		return nil, "", fmt.Errorf("unsupported market for TongHuaShun: %s", market)
+	}
+
+	// 构建请求URL - 基于提供的curl命令
+	requestURL := fmt.Sprintf("https://d.10jqka.com.cn/v6/line/%s/%s/defer/today.js", thsCode, THSKLineTypeDaily)
+
+	// 发送请求
+	resp, err := t.makeTodayDataRequest(requestURL)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch today data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// 解析响应数据
+	todayData, name, err := t.parseTodayDataResponse(tsCode, thsCode, string(body))
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse today data response: %w", err)
+	}
+
+	return todayData, name, nil
+}
+
+// makeTodayDataRequest 发送当日数据请求
+func (t *TongHuaShunCollector) makeTodayDataRequest(url string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// 设置请求头 - 完全按照curl请求设置
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("If-Modified-Since", "Sun, 05 Oct 2025 06:43:51 GMT")
+	req.Header.Set("Referer", "https://stockpage.10jqka.com.cn/")
+	req.Header.Set("Sec-Fetch-Dest", "script")
+	req.Header.Set("Sec-Fetch-Mode", "no-cors")
+	req.Header.Set("Sec-Fetch-Site", "same-site")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36")
+	req.Header.Set("sec-ch-ua", `"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"`)
+	req.Header.Set("sec-ch-ua-mobile", "?0")
+	req.Header.Set("sec-ch-ua-platform", `"macOS"`)
+
+	// 设置Cookie - 基于curl请求中的格式
+	timestamp := time.Now().Unix()
+	cookieValue := fmt.Sprintf("Hm_lvt_722143063e4892925903024537075d0d=%d; "+
+		"HMACCOUNT=17C55F0F7B5ABE69; Hm_lvt_929f8b362150b1f77b477230541dbbc2=%d; "+
+		"Hm_lvt_78c58f01938e4d85eaf619eae71b4ed1=%d; Hm_lvt_69929b9dce4c22a060bd22d703b2a280=%d; "+
+		"spversion=20130314; historystock=601899%%7C*%%7C001208%%7C*%%7C600930%%7C*%%7C001201; H"+
+		"m_lpvt_929f8b362150b1f77b477230541dbbc2=%d; Hm_lpvt_69929b9dce4c22a060bd22d703b2a280=%d; "+
+		"Hm_lpvt_722143063e4892925903024537075d0d=%d; Hm_ck_%d=42; "+
+		"Hm_lpvt_78c58f01938e4d85eaf619eae71b4ed1=%d; v=%s", timestamp, timestamp, timestamp, timestamp,
+		timestamp, timestamp, timestamp, timestamp-1, timestamp, GenerateWencaiToken())
+
+	req.Header.Set("Cookie", cookieValue)
+
+	// 应用限流
+	if err := t.limiter.Wait(context.Background()); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %v", err)
+	}
+
+	t.logger.Debugf("Making today data request to TongHuaShun: %s", url)
+
+	resp, err := t.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		defer resp.Body.Close()
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	return resp, nil
+}
+
+// parseTodayDataResponse 解析当日数据响应
+func (t *TongHuaShunCollector) parseTodayDataResponse(tsCode, thsCode, res string) (*model.DailyData, string, error) {
+	// 同花顺返回的是JavaScript格式，需要提取数据部分
+	// 实际格式: quotebridge_v6_line_hs_601899_11_defer_today({"hs_601899": {...}})
+
+	// 构建回调函数名（注意这里可能是11而不是01）
+	callbackName := fmt.Sprintf("quotebridge_v6_line_%s_", thsCode)
+
+	// 找到回调函数的开始位置
+	startIdx := strings.Index(res, callbackName)
+	if startIdx == -1 {
+		return nil, "", fmt.Errorf("callback function not found in response")
+	}
+
+	// 找到参数开始的位置
+	parenIdx := strings.Index(res[startIdx:], "(")
+	if parenIdx == -1 {
+		return nil, "", fmt.Errorf("callback parameters not found")
+	}
+
+	// 提取JSON部分
+	jsonStart := startIdx + parenIdx + 1
+	jsonEnd := strings.LastIndex(res, ")")
+	if jsonEnd == -1 || jsonEnd <= jsonStart {
+		return nil, "", fmt.Errorf("invalid callback format")
+	}
+
+	jsonStr := res[jsonStart:jsonEnd]
+
+	// 解析JSON - 实际格式是包含股票代码作为key的对象
+	var response map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &response); err != nil {
+		return nil, "", fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	// 获取股票数据（key是thsCode，如"hs_601899"）
+	stockData, exists := response[thsCode]
+	if !exists {
+		return nil, "", fmt.Errorf("stock data not found for %s", thsCode)
+	}
+
+	// 将stockData转换为map[string]interface{}
+	dataMap, ok := stockData.(map[string]interface{})
+	if !ok {
+		return nil, "", fmt.Errorf("invalid stock data format")
+	}
+
+	// 解析各个字段
+	// "1": "20250930" - 交易日期
+	// "7": "27.48" - 开盘价
+	// "8": "29.88" - 最高价
+	// "9": "27.31" - 最低价
+	// "11": "29.44" - 收盘价
+	// "13": 785682260 - 成交量
+	// "19": "22670644000.00" - 成交额
+
+	tradeDateStr := t.getStringValue(dataMap, "1")
+	openStr := t.getStringValue(dataMap, "7")
+	highStr := t.getStringValue(dataMap, "8")
+	lowStr := t.getStringValue(dataMap, "9")
+	closeStr := t.getStringValue(dataMap, "11")
+	volumeStr := t.getStringValue(dataMap, "13")
+	amountStr := t.getStringValue(dataMap, "19")
+
+	// 转换数据类型
+	tradeDate, err := strconv.Atoi(tradeDateStr)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse trade date: %v", err)
+	}
+
+	open := t.parseFloat(openStr)
+	high := t.parseFloat(highStr)
+	low := t.parseFloat(lowStr)
+	over := t.parseFloat(closeStr)
+	volume := t.parseInt64(volumeStr)
+	amount := t.parseFloat(amountStr)
+
+	// 创建DailyData对象
+	todayData := &model.DailyData{
+		TsCode:    tsCode,
+		TradeDate: tradeDate,
+		Open:      open,
+		High:      high,
+		Low:       low,
+		Close:     over,
+		Volume:    volume,
+		Amount:    amount,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	return todayData, t.getStringValue(dataMap, "name"), nil
+}
+
+// getStringValue 从map中获取字符串值，支持多种类型转换
+func (t *TongHuaShunCollector) getStringValue(dataMap map[string]interface{}, key string) string {
+	value, exists := dataMap[key]
+	if !exists || value == nil {
+		return ""
+	}
+
+	switch v := value.(type) {
+	case string:
+		return v
+	case float64:
+		// 如果是整数，不显示小数点
+		if v == float64(int64(v)) {
+			return fmt.Sprintf("%.0f", v)
+		}
+		return fmt.Sprintf("%f", v)
+	case int:
+		return fmt.Sprintf("%d", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	case bool:
+		if v {
+			return "1"
+		}
+		return "0"
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// GetThisWeekData 获取本周数据
+func (t *TongHuaShunCollector) GetThisWeekData(tsCode string) (*model.WeeklyData, error) {
+	t.logger.Infof("TongHuaShun GetThisWeekData for %s", tsCode)
+
+	// 解析股票代码
+	symbol, market, err := t.parseStockCode(tsCode)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tsCode format: %s", tsCode)
+	}
+
+	// 构建同花顺股票代码格式
+	thsCode := t.buildTHSStockCode(symbol, market)
+	if thsCode == "" {
+		return nil, fmt.Errorf("unsupported market for TongHuaShun: %s", market)
+	}
+
+	// 构建请求URL - 使用周K线类型
+	requestURL := fmt.Sprintf("https://d.10jqka.com.cn/v6/line/%s/%s/defer/today.js", thsCode, THSKLineTypeWeekly)
+
+	// 发送请求
+	resp, err := t.makeTodayDataRequest(requestURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch this week data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// 解析响应数据
+	weekData, err := t.parseThisWeekDataResponse(tsCode, thsCode, string(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse this week data response: %w", err)
+	}
+
+	return weekData, nil
+}
+
+// GetThisMonthData 获取本月数据
+func (t *TongHuaShunCollector) GetThisMonthData(tsCode string) (*model.MonthlyData, error) {
+	t.logger.Infof("TongHuaShun GetThisMonthData for %s", tsCode)
+
+	// 解析股票代码
+	symbol, market, err := t.parseStockCode(tsCode)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tsCode format: %s", tsCode)
+	}
+
+	// 构建同花顺股票代码格式
+	thsCode := t.buildTHSStockCode(symbol, market)
+	if thsCode == "" {
+		return nil, fmt.Errorf("unsupported market for TongHuaShun: %s", market)
+	}
+
+	// 构建请求URL - 使用月K线类型
+	requestURL := fmt.Sprintf("https://d.10jqka.com.cn/v6/line/%s/%s/defer/today.js", thsCode, THSKLineTypeMonthly)
+
+	// 发送请求
+	resp, err := t.makeTodayDataRequest(requestURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch this month data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// 解析响应数据
+	monthData, err := t.parseThisMonthDataResponse(tsCode, thsCode, string(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse this month data response: %w", err)
+	}
+
+	return monthData, nil
+}
+
+// GetThisQuarterData 获取本季数据
+func (t *TongHuaShunCollector) GetThisQuarterData(tsCode string) (*model.QuarterlyData, error) {
+	t.logger.Infof("TongHuaShun GetThisQuarterData for %s", tsCode)
+
+	// 解析股票代码
+	symbol, market, err := t.parseStockCode(tsCode)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tsCode format: %s", tsCode)
+	}
+
+	// 构建同花顺股票代码格式
+	thsCode := t.buildTHSStockCode(symbol, market)
+	if thsCode == "" {
+		return nil, fmt.Errorf("unsupported market for TongHuaShun: %s", market)
+	}
+
+	// 构建请求URL - 使用季K线类型
+	requestURL := fmt.Sprintf("https://d.10jqka.com.cn/v6/line/%s/%s/defer/today.js", thsCode, THSKLineTypeQuarterly)
+
+	// 发送请求
+	resp, err := t.makeTodayDataRequest(requestURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch this quarter data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// 解析响应数据
+	quarterData, err := t.parseThisQuarterDataResponse(tsCode, thsCode, string(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse this quarter data response: %w", err)
+	}
+
+	return quarterData, nil
+}
+
+// GetThisYearData 获取本年数据
+func (t *TongHuaShunCollector) GetThisYearData(tsCode string) (*model.YearlyData, error) {
+	t.logger.Infof("TongHuaShun GetThisYearData for %s", tsCode)
+
+	// 解析股票代码
+	symbol, market, err := t.parseStockCode(tsCode)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tsCode format: %s", tsCode)
+	}
+
+	// 构建同花顺股票代码格式
+	thsCode := t.buildTHSStockCode(symbol, market)
+	if thsCode == "" {
+		return nil, fmt.Errorf("unsupported market for TongHuaShun: %s", market)
+	}
+
+	// 构建请求URL - 使用年K线类型
+	requestURL := fmt.Sprintf("https://d.10jqka.com.cn/v6/line/%s/%s/defer/today.js", thsCode, THSKLineTypeYearly)
+
+	// 发送请求
+	resp, err := t.makeTodayDataRequest(requestURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch this year data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// 解析响应数据
+	yearData, err := t.parseThisYearDataResponse(tsCode, thsCode, string(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse this year data response: %w", err)
+	}
+
+	return yearData, nil
+}
+
+// parseThisWeekDataResponse 解析本周数据响应
+func (t *TongHuaShunCollector) parseThisWeekDataResponse(tsCode, thsCode, res string) (*model.WeeklyData, error) {
+	// 使用通用解析方法
+	dailyData, _, err := t.parseTodayDataResponse(tsCode, thsCode, res)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为周K线数据格式
+	weekData := &model.WeeklyData{
+		TsCode:    dailyData.TsCode,
+		TradeDate: dailyData.TradeDate,
+		Open:      dailyData.Open,
+		High:      dailyData.High,
+		Low:       dailyData.Low,
+		Close:     dailyData.Close,
+		Volume:    dailyData.Volume,
+		Amount:    dailyData.Amount,
+		CreatedAt: dailyData.CreatedAt,
+		UpdatedAt: dailyData.UpdatedAt,
+	}
+
+	return weekData, nil
+}
+
+// parseThisMonthDataResponse 解析本月数据响应
+func (t *TongHuaShunCollector) parseThisMonthDataResponse(tsCode, thsCode, res string) (*model.MonthlyData, error) {
+	// 使用通用解析方法
+	dailyData, _, err := t.parseTodayDataResponse(tsCode, thsCode, res)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为月K线数据格式
+	monthData := &model.MonthlyData{
+		TsCode:    dailyData.TsCode,
+		TradeDate: dailyData.TradeDate,
+		Open:      dailyData.Open,
+		High:      dailyData.High,
+		Low:       dailyData.Low,
+		Close:     dailyData.Close,
+		Volume:    dailyData.Volume,
+		Amount:    dailyData.Amount,
+		CreatedAt: dailyData.CreatedAt,
+		UpdatedAt: dailyData.UpdatedAt,
+	}
+
+	return monthData, nil
+}
+
+// parseThisQuarterDataResponse 解析本季数据响应
+func (t *TongHuaShunCollector) parseThisQuarterDataResponse(tsCode, thsCode, res string) (*model.QuarterlyData, error) {
+	// 使用通用解析方法
+	dailyData, _, err := t.parseTodayDataResponse(tsCode, thsCode, res)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为季K线数据格式
+	quarterData := &model.QuarterlyData{
+		TsCode:    dailyData.TsCode,
+		TradeDate: dailyData.TradeDate,
+		Open:      dailyData.Open,
+		High:      dailyData.High,
+		Low:       dailyData.Low,
+		Close:     dailyData.Close,
+		Volume:    dailyData.Volume,
+		Amount:    dailyData.Amount,
+		CreatedAt: dailyData.CreatedAt,
+		UpdatedAt: dailyData.UpdatedAt,
+	}
+
+	return quarterData, nil
+}
+
+// parseThisYearDataResponse 解析本年数据响应
+func (t *TongHuaShunCollector) parseThisYearDataResponse(tsCode, thsCode, res string) (*model.YearlyData, error) {
+	// 使用通用解析方法
+	dailyData, _, err := t.parseTodayDataResponse(tsCode, thsCode, res)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为年K线数据格式
+	yearData := &model.YearlyData{
+		TsCode:    dailyData.TsCode,
+		TradeDate: dailyData.TradeDate,
+		Open:      dailyData.Open,
+		High:      dailyData.High,
+		Low:       dailyData.Low,
+		Close:     dailyData.Close,
+		Volume:    dailyData.Volume,
+		Amount:    dailyData.Amount,
+		CreatedAt: dailyData.CreatedAt,
+		UpdatedAt: dailyData.UpdatedAt,
+	}
+
+	return yearData, nil
+}
+
 // GetPerformanceReports 获取业绩报表数据 - 空实现
 func (t *TongHuaShunCollector) GetPerformanceReports(tsCode string) ([]model.PerformanceReport, error) {
 	t.logger.Infof("TongHuaShun GetPerformanceReports for %s - 功能暂未实现", tsCode)
