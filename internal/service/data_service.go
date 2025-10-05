@@ -1,7 +1,9 @@
 package service
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -82,21 +84,6 @@ func (s *DataService) SyncStockList() error {
 
 	s.logger.Infof("Fetched %d stocks", len(stocks))
 
-	if err := s.UpdateALLStockStatus(false); err != nil {
-		return fmt.Errorf("failed to reset stock status err: %v", err)
-	}
-
-	for i, stock := range stocks {
-		if strings.HasPrefix(stock.Name, "XD") { // 除权日清理所有k线数据
-			_ = s.dailyDataRepo.DeleteDailyData(stock.TsCode, time.Time{})
-			_ = s.weeklyDataRepo.DeleteWeeklyData(stock.TsCode, time.Time{})
-			_ = s.monthlyDataRepo.DeleteMonthlyData(stock.TsCode, time.Time{})
-			_ = s.yearlyDataRepo.DeleteYearlyData(stock.TsCode, time.Time{})
-		}
-		if strings.HasPrefix(stock.Name, "PT") { // 退市
-			stocks[i].IsActive = false
-		}
-	}
 	// 批量更新或插入股票数据
 	if err := s.stockRepo.UpsertStocks(stocks); err != nil {
 		return fmt.Errorf("failed to upsert stocks: %v", err)
@@ -104,6 +91,80 @@ func (s *DataService) SyncStockList() error {
 
 	s.logger.Infof("Successfully synchronized %d stocks", len(stocks))
 	return nil
+}
+
+// SyncStockActiveList 同步股票活跃情况列表
+func (s *DataService) SyncStockActiveList() ([]*model.Stock, bool, error) {
+	logger.Info("Starting stock active list synchronization...")
+
+	// 创建采集器
+	collect, err := s.collectorFactory.CreateCollector(collector.CollectorTypeTongHuaShun)
+	if err != nil {
+		return nil, true, fmt.Errorf("failed to create collector: %v", err)
+	}
+
+	// 连接数据源
+	if err := collect.Connect(); err != nil {
+		return nil, true, fmt.Errorf("failed to connect to collector: %v", err)
+	}
+	defer collect.Disconnect()
+
+	// 获取股票列表
+	stocks, err := s.GetAllStocks()
+	if err != nil {
+		return nil, true, fmt.Errorf("failed to get stock list: %v", err)
+	}
+
+	//logger.Infof("Fetched %d stocks", len(stocks))
+
+	todayDate, _ := strconv.Atoi(time.Now().Format("20060102"))
+	dateCnt := 0
+	var codes []string
+	var res = make([]*model.Stock, 0, len(stocks))
+	var todayData = map[string]model.DailyData{}
+	for i, stock := range stocks {
+		today, name, err := collect.GetTodayData(stock.TsCode)
+		if err != nil {
+			logger.Errorf("GetTodayData[%s] failed. err:%s", stock.TsCode, err.Error())
+			continue
+		}
+
+		if today.TradeDate != todayDate {
+			dateCnt++
+		}
+		if i-dateCnt > 50 && i < 100 { // 今天不是工作日
+			return nil, false, nil
+		}
+		if strings.HasPrefix(name, "XD") { // 除权日清理所有k线数据
+			codes = append(codes, stock.TsCode)
+			stocks[i].Name = name
+		} else if strings.HasPrefix(name, "PT") { // 退市
+			stocks[i].IsActive = false
+		} else {
+			todayData[stock.TsCode] = *today
+		}
+		res = append(res, stocks[i])
+		// 批量更新或插入股票数据
+		if err := s.stockRepo.UpsertStocks([]model.Stock{*stock}); err != nil {
+			logger.Errorf("failed to upsert stocks: %v", err)
+			continue
+		}
+	}
+
+	for _, today := range todayData {
+		_ = s.dailyDataRepo.UpsertDailyData([]model.DailyData{today})
+	}
+
+	// 除权日清理所有k线数据
+	for _, code := range codes {
+		_ = s.dailyDataRepo.DeleteDailyData(code, time.Time{})
+		_ = s.weeklyDataRepo.DeleteWeeklyData(code, time.Time{})
+		_ = s.monthlyDataRepo.DeleteMonthlyData(code, time.Time{})
+		_ = s.yearlyDataRepo.DeleteYearlyData(code, time.Time{})
+	}
+
+	logger.Infof("Successfully synchronized %d stocks", len(stocks))
+	return res, true, nil
 }
 
 // GetAllStocks 获取所有股票列表
@@ -375,6 +436,22 @@ func (s *DataService) SyncRealtimeData(tsCodes []string) error {
 
 	s.logger.Infof("Successfully synchronized realtime data for %d stocks", len(realtimeData))
 	return nil
+}
+
+// UpsertKLineData 更新K线数据
+func (s *DataService) UpsertKLineData(data interface{}) error {
+	switch v := data.(type) {
+	case []model.DailyData:
+		return s.dailyDataRepo.SaveDailyData(v)
+	case []model.WeeklyData:
+		return s.weeklyDataRepo.SaveWeeklyData(v)
+	case []model.MonthlyData:
+		return s.monthlyDataRepo.SaveMonthlyData(v)
+	case []model.YearlyData:
+		return s.yearlyDataRepo.BatchUpsert(v)
+	default:
+		return errors.New("UpsertKLineData unknown type")
+	}
 }
 
 // SyncAllRealtimeData 同步所有活跃股票的实时数据
