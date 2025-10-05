@@ -16,6 +16,15 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// K线类型常量 - 同花顺采集器使用
+const (
+	THSKLineTypeDaily     = "01" // 日K线
+	THSKLineTypeWeekly    = "11" // 周K线
+	THSKLineTypeMonthly   = "21" // 月K线
+	THSKLineTypeQuarterly = "91" // 季K线
+	THSKLineTypeYearly    = "81" // 年K线
+)
+
 // TongHuaShunCollector 同花顺数据采集器
 type TongHuaShunCollector struct {
 	BaseCollector
@@ -483,58 +492,155 @@ func (t *TongHuaShunCollector) GetStockData(tsCode string, startDate, endDate ti
 func (t *TongHuaShunCollector) GetDailyKLine(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error) {
 	t.logger.Infof("TongHuaShun GetDailyKLine for %s", tsCode)
 
-	// 解析股票代码
-	symbol, market, err := t.parseStockCode(tsCode)
-	if err != nil {
-		return nil, fmt.Errorf("invalid tsCode format: %s", tsCode)
-	}
-
-	// 构建同花顺股票代码格式
-	thsCode := t.buildTHSStockCode(symbol, market)
-	if thsCode == "" {
-		return nil, fmt.Errorf("unsupported market for TongHuaShun: %s", market)
-	}
-
-	// 构建请求URL
-	requestURL := fmt.Sprintf("https://d.10jqka.com.cn/v6/line/%s/01/all.js", thsCode)
-
-	// 发送请求
-	resp, err := t.makeRequest(requestURL, "https://stockpage.10jqka.com.cn/")
+	// 使用通用方法获取K线数据
+	rawData, err := t.getKLineData(tsCode, THSKLineTypeDaily, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch daily K-line data: %w", err)
 	}
-	defer resp.Body.Close()
 
-	// 读取响应
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+	// 转换为日K线数据格式
+	var dailyData []model.DailyData
+	for _, item := range rawData {
+		daily := model.DailyData{
+			TsCode:    item.TsCode,
+			TradeDate: item.TradeDate,
+			Open:      item.Open,
+			High:      item.High,
+			Low:       item.Low,
+			Close:     item.Close,
+			Volume:    item.Volume,
+			Amount:    item.Amount,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		}
+		dailyData = append(dailyData, daily)
 	}
 
-	// 解析响应数据
-	dailyData, err := t.parseDailyKLineResponse(tsCode, string(body), startDate, endDate)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse daily K-line response: %w", err)
-	}
 	return dailyData, nil
 }
 
-// GetWeeklyKLine 获取周K线数据 - 空实现
+// GetWeeklyKLine 获取周K线数据
 func (t *TongHuaShunCollector) GetWeeklyKLine(tsCode string, startDate, endDate time.Time) ([]model.WeeklyData, error) {
-	t.logger.Infof("TongHuaShun GetWeeklyKLine for %s - 功能暂未实现", tsCode)
-	return []model.WeeklyData{}, fmt.Errorf("TongHuaShun GetWeeklyKLine not implemented yet")
+	t.logger.Infof("TongHuaShun GetWeeklyKLine for %s", tsCode)
+
+	// 使用通用方法获取K线数据
+	rawData, err := t.getKLineData(tsCode, THSKLineTypeWeekly, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch weekly K-line data: %w", err)
+	}
+
+	// 转换为周K线数据格式
+	var weeklyData []model.WeeklyData
+	for _, item := range rawData {
+		weekly := model.WeeklyData{
+			TsCode:    item.TsCode,
+			TradeDate: item.TradeDate,
+			Open:      item.Open,
+			High:      item.High,
+			Low:       item.Low,
+			Close:     item.Close,
+			Volume:    item.Volume,
+			Amount:    item.Amount,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		}
+		weeklyData = append(weeklyData, weekly)
+	}
+
+	return weeklyData, nil
 }
 
-// GetMonthlyKLine 获取月K线数据 - 空实现
+// GetMonthlyKLine 获取月K线数据
 func (t *TongHuaShunCollector) GetMonthlyKLine(tsCode string, startDate, endDate time.Time) ([]model.MonthlyData, error) {
-	t.logger.Infof("TongHuaShun GetMonthlyKLine for %s - 功能暂未实现", tsCode)
-	return []model.MonthlyData{}, fmt.Errorf("TongHuaShun GetMonthlyKLine not implemented yet")
+	t.logger.Infof("TongHuaShun GetMonthlyKLine for %s", tsCode)
+
+	// 使用通用方法获取K线数据
+	rawData, err := t.getKLineData(tsCode, THSKLineTypeMonthly, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch monthly K-line data: %w", err)
+	}
+
+	// 转换为月K线数据格式
+	var monthlyData []model.MonthlyData
+	for _, item := range rawData {
+		monthly := model.MonthlyData{
+			TsCode:    item.TsCode,
+			TradeDate: item.TradeDate,
+			Open:      item.Open,
+			High:      item.High,
+			Low:       item.Low,
+			Close:     item.Close,
+			Volume:    item.Volume,
+			Amount:    item.Amount,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		}
+		monthlyData = append(monthlyData, monthly)
+	}
+
+	return monthlyData, nil
 }
 
-// GetYearlyKLine 获取年K线数据 - 空实现
+// GetQuarterlyKLine 获取季K线数据
+func (t *TongHuaShunCollector) GetQuarterlyKLine(tsCode string, startDate, endDate time.Time) ([]model.QuarterlyData, error) {
+	t.logger.Infof("TongHuaShun GetQuarterlyKLine for %s", tsCode)
+
+	// 使用通用方法获取K线数据
+	rawData, err := t.getKLineData(tsCode, THSKLineTypeQuarterly, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch quarterly K-line data: %w", err)
+	}
+
+	// 转换为季K线数据格式
+	var quarterlyData []model.QuarterlyData
+	for _, item := range rawData {
+		quarterly := model.QuarterlyData{
+			TsCode:    item.TsCode,
+			TradeDate: item.TradeDate,
+			Open:      item.Open,
+			High:      item.High,
+			Low:       item.Low,
+			Close:     item.Close,
+			Volume:    item.Volume,
+			Amount:    item.Amount,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		}
+		quarterlyData = append(quarterlyData, quarterly)
+	}
+
+	return quarterlyData, nil
+}
+
+// GetYearlyKLine 获取年K线数据
 func (t *TongHuaShunCollector) GetYearlyKLine(tsCode string, startDate, endDate time.Time) ([]model.YearlyData, error) {
-	t.logger.Infof("TongHuaShun GetYearlyKLine for %s - 功能暂未实现", tsCode)
-	return []model.YearlyData{}, fmt.Errorf("TongHuaShun GetYearlyKLine not implemented yet")
+	t.logger.Infof("TongHuaShun GetYearlyKLine for %s", tsCode)
+
+	// 使用通用方法获取K线数据
+	rawData, err := t.getKLineData(tsCode, THSKLineTypeYearly, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch yearly K-line data: %w", err)
+	}
+
+	// 转换为年K线数据格式
+	var yearlyData []model.YearlyData
+	for _, item := range rawData {
+		yearly := model.YearlyData{
+			TsCode:    item.TsCode,
+			TradeDate: item.TradeDate,
+			Open:      item.Open,
+			High:      item.High,
+			Low:       item.Low,
+			Close:     item.Close,
+			Volume:    item.Volume,
+			Amount:    item.Amount,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		}
+		yearlyData = append(yearlyData, yearly)
+	}
+
+	return yearlyData, nil
 }
 
 // GetRealtimeData 获取实时数据 - 空实现
@@ -676,11 +782,23 @@ func (t *TongHuaShunCollector) buildTHSStockCode(symbol, market string) string {
 	}
 }
 
-// parseDailyKLineResponse 解析同花顺日K线响应数据
-func (t *TongHuaShunCollector) parseDailyKLineResponse(tsCode, res string, startDate, endDate time.Time) (
-	[]model.DailyData, error) {
-	// 同花顺返回的是JavaScript格式，需要提取数据部分
-	// 示例格式: quotebridge_v6_line_hs_001208_01_all({"data":"20240101,10.5,10.8,10.2,10.6,1000000;..."})
+// THSKLineData 同花顺K线数据结构
+type THSKLineData struct {
+	TsCode    string
+	TradeDate int
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
+	Volume    int64
+	Amount    float64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// getKLineData 通用K线数据获取方法
+func (t *TongHuaShunCollector) getKLineData(tsCode, klineType string, startDate, endDate time.Time) ([]THSKLineData, error) {
+	// 解析股票代码
 	symbol, market, err := t.parseStockCode(tsCode)
 	if err != nil {
 		return nil, fmt.Errorf("invalid tsCode format: %s", tsCode)
@@ -688,9 +806,79 @@ func (t *TongHuaShunCollector) parseDailyKLineResponse(tsCode, res string, start
 
 	// 构建同花顺股票代码格式
 	thsCode := t.buildTHSStockCode(symbol, market)
+	if thsCode == "" {
+		return nil, fmt.Errorf("unsupported market for TongHuaShun: %s", market)
+	}
 
-	res = strings.TrimLeft(res, "quotebridge_v6_line_"+thsCode+"_01_all(")
-	res = strings.TrimRight(res, ")")
+	// 构建请求URL
+	requestURL := fmt.Sprintf("https://d.10jqka.com.cn/v6/line/%s/%s/all.js", thsCode, klineType)
+
+	// 发送请求
+	resp, err := t.makeKLineRequest(requestURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch K-line data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// 解析响应数据
+	klineData, err := t.parseKLineResponse(tsCode, thsCode, klineType, string(body), startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse K-line response: %w", err)
+	}
+
+	return klineData, nil
+}
+
+// makeKLineRequest 发送K线数据请求
+func (t *TongHuaShunCollector) makeKLineRequest(url string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// 设置请求头 - 根据提供的curl命令
+	req.Header.Set("sec-ch-ua-platform", `"macOS"`)
+	req.Header.Set("Referer", "https://stockpage.10jqka.com.cn/")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36")
+	req.Header.Set("sec-ch-ua", `"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"`)
+	req.Header.Set("sec-ch-ua-mobile", "?0")
+
+	// 应用限流
+	if err := t.limiter.Wait(context.Background()); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %v", err)
+	}
+
+	t.logger.Debugf("Making K-line request to TongHuaShun: %s", url)
+
+	resp, err := t.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		defer resp.Body.Close()
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	return resp, nil
+}
+
+// parseKLineResponse 解析同花顺K线响应数据
+func (t *TongHuaShunCollector) parseKLineResponse(tsCode, thsCode, klineType, res string, startDate, endDate time.Time) ([]THSKLineData, error) {
+	// 同花顺返回的是JavaScript格式，需要提取数据部分
+	// 示例格式: quotebridge_v6_line_hs_001208_01_all({"data":"20240101,10.5,10.8,10.2,10.6,1000000;..."})
+
+	// 构建回调函数名
+	callbackName := fmt.Sprintf("quotebridge_v6_line_%s_%s_all(", thsCode, klineType)
+
+	res = strings.TrimPrefix(res, callbackName)
+	res = strings.TrimSuffix(res, ")")
 
 	// 解析JSON
 	var response struct {
@@ -710,42 +898,57 @@ func (t *TongHuaShunCollector) parseDailyKLineResponse(tsCode, res string, start
 	dates := strings.Split(response.Dates, ",")
 
 	// 解析K线数据
-	var dailyData = make([]model.DailyData, 0, len(dates))
+	var klineData = make([]THSKLineData, 0, len(dates))
 	var index int
 	for _, arr := range response.SortYear {
 		year, num := arr[0], arr[1]
 		for num > 0 && len(dates) > index && len(prices) > index*4 && len(volumes) > index {
-			var daily = model.DailyData{
+			var data = THSKLineData{
 				TsCode:    tsCode,
 				Volume:    0,
 				Amount:    0,
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}
+
 			td, err := time.ParseInLocation("20060102", fmt.Sprintf("%d%s", year, dates[index]), time.Local)
 			if err != nil {
 				return nil, err
 			}
-			if !(td.Before(startDate) || td.After(endDate)) {
-				daily.TradeDate, _ = strconv.Atoi(fmt.Sprintf("%d%s", year, dates[index]))
-				low, _ := strconv.Atoi(prices[index*4])
-				open, _ := strconv.Atoi(prices[index*4+1])
-				high, _ := strconv.Atoi(prices[index*4+2])
-				over, _ := strconv.Atoi(prices[index*4+3])
-				volume, _ := strconv.ParseInt(volumes[index], 10, 64)
-				daily.Low = float64(low) / 100
-				daily.Open = float64(low+open) / 100
-				daily.High = float64(low+high) / 100
-				daily.Close = float64(low+over) / 100
-				daily.Volume = volume
-				dailyData = append(dailyData, daily)
+
+			// 检查日期范围
+			if !startDate.IsZero() && td.Before(startDate) {
+				num--
+				index++
+				continue
 			}
+			if !endDate.IsZero() && td.After(endDate) {
+				num--
+				index++
+				continue
+			}
+
+			data.TradeDate, _ = strconv.Atoi(fmt.Sprintf("%d%s", year, dates[index]))
+			low, _ := strconv.Atoi(prices[index*4])
+			open, _ := strconv.Atoi(prices[index*4+1])
+			high, _ := strconv.Atoi(prices[index*4+2])
+			over, _ := strconv.Atoi(prices[index*4+3])
+			volume, _ := strconv.ParseInt(volumes[index], 10, 64)
+
+			data.Low = float64(low) / 100
+			data.Open = float64(low+open) / 100
+			data.High = float64(low+high) / 100
+			data.Close = float64(low+over) / 100
+			data.Volume = volume
+
+			klineData = append(klineData, data)
+
 			num--
 			index++
 		}
 	}
 
-	return dailyData, nil
+	return klineData, nil
 }
 
 // filterDataByDateRange 根据时间范围过滤数据
