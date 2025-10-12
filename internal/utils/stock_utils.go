@@ -1,6 +1,10 @@
 package utils
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // ConvertToTsCode 转换股票代码格式
 func ConvertToTsCode(code string) string {
@@ -18,4 +22,14 @@ func ConvertToTsCode(code string) string {
 
 	// 默认返回原代码
 	return code
+}
+
+// ParseTradeDate 解析交易日期
+func ParseTradeDate(date int) (time.Time, error) {
+	tradeDateStr := fmt.Sprintf("%d", date)
+	tradeDate, err := time.Parse("20060102", tradeDateStr)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("解析交易日期失败: %v", err)
+	}
+	return tradeDate, nil
 }

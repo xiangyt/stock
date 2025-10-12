@@ -541,3 +541,32 @@ func TestShareholderCountsCollection(t *testing.T) {
 	//syncStockYearlyKLine(services, &model.Stock{TsCode: "001208.SZ"})
 
 }
+
+func TestCalculateKDJ(t *testing.T) {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// 初始化数据库连接
+	dbManager, err := database.NewDatabase(&cfg.Database, logger.GetGlobalLogger())
+	if err != nil {
+		logger.Fatalf("Failed to connect to database: %v", err)
+	}
+	db := dbManager.DB
+
+	// 初始化服务
+	services, err := initServicesWithDB(cfg, db)
+	if err != nil {
+		logger.Fatalf("Failed to initialize services: %v", err)
+	}
+
+	err = services.IndicatorService.CalculateKDJByPeriod(model.Stock{
+		TsCode: "001208.SZ",
+		Symbol: "001208",
+	}, model.TechnicalIndicatorPeriodDaily)
+	//syncStockYearlyKLine(services, &model.Stock{TsCode: "001208.SZ"})
+	if err != nil {
+		t.Log(err)
+	}
+}

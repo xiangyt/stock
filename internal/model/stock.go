@@ -39,6 +39,21 @@ type DailyData struct {
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
 }
 
+// Get4Price 获取最高、最低、开盘、收盘价
+func (d DailyData) Get4Price() (float64, float64, float64, float64) {
+	return d.High, d.Low, d.Open, d.Close
+}
+
+// GetSymbol 获取股票代码
+func (d DailyData) GetSymbol() string {
+	return strings.Split(d.TsCode, ".")[0]
+}
+
+// GetTradeDate 获取交易日期
+func (d DailyData) GetTradeDate() int {
+	return d.TradeDate
+}
+
 // TableName 指定表名 - 根据股票代码动态选择表名
 func (d DailyData) TableName() string {
 	// 提取股票代码的前三位数字
@@ -105,6 +120,21 @@ type WeeklyData struct {
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
 }
 
+// Get4Price 获取最高、最低、开盘、收盘价
+func (w WeeklyData) Get4Price() (float64, float64, float64, float64) {
+	return w.High, w.Low, w.Open, w.Close
+}
+
+// GetSymbol 获取股票代码
+func (w WeeklyData) GetSymbol() string {
+	return strings.Split(w.TsCode, ".")[0]
+}
+
+// GetTradeDate 获取交易日期
+func (w WeeklyData) GetTradeDate() int {
+	return w.TradeDate
+}
+
 // TableName 指定表名 - 根据股票代码动态选择表名
 func (w WeeklyData) TableName() string {
 	// 提取股票代码的前三位数字
@@ -138,6 +168,21 @@ type MonthlyData struct {
 	Amount    float64   `json:"amount" gorm:"type:decimal(20,2)"`           // 月成交额，单位：元
 	CreatedAt time.Time `json:"created_at"`                                 // 记录创建时间戳
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
+}
+
+// Get4Price 获取最高、最低、开盘、收盘价
+func (m MonthlyData) Get4Price() (float64, float64, float64, float64) {
+	return m.High, m.Low, m.Open, m.Close
+}
+
+// GetSymbol 获取股票代码
+func (m MonthlyData) GetSymbol() string {
+	return strings.Split(m.TsCode, ".")[0]
+}
+
+// GetTradeDate 获取交易日期
+func (m MonthlyData) GetTradeDate() int {
+	return m.TradeDate
 }
 
 // TableName 指定表名 - 根据股票代码动态选择表名
@@ -194,33 +239,99 @@ type YearlyData struct {
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
 }
 
+// Get4Price 获取最高、最低、开盘、收盘价
+func (y YearlyData) Get4Price() (float64, float64, float64, float64) {
+	return y.High, y.Low, y.Open, y.Close
+}
+
+// GetSymbol 获取股票代码
+func (y YearlyData) GetSymbol() string {
+	return strings.Split(y.TsCode, ".")[0]
+}
+
+// GetTradeDate 获取交易日期
+func (y YearlyData) GetTradeDate() int {
+	return y.TradeDate
+}
+
 // TableName 指定表名
 func (YearlyData) TableName() string {
 	return "yearly_data"
 }
 
+// TechnicalIndicatorPeriod 技术指标周期类型
+type TechnicalIndicatorPeriod string
+
+const (
+	TechnicalIndicatorPeriodDaily   TechnicalIndicatorPeriod = "daily"
+	TechnicalIndicatorPeriodWeekly  TechnicalIndicatorPeriod = "weekly"
+	TechnicalIndicatorPeriodMonthly TechnicalIndicatorPeriod = "monthly"
+	TechnicalIndicatorPeriodYearly  TechnicalIndicatorPeriod = "yearly"
+)
+
 // TechnicalIndicator 技术指标模型 - A股技术分析指标
 type TechnicalIndicator struct {
-	ID         uint    `json:"id" gorm:"primaryKey"`                  // 主键ID，数据库自增
-	TsCode     string  `json:"ts_code" gorm:"size:20;not null;index"` // 股票代码，如：000001.SZ
-	TradeDate  int     `json:"trade_date" gorm:"not null;index"`      // 交易日期，YYYYMMDD格式，如：20250910
-	MA5        float64 `json:"ma5" gorm:"type:decimal(10,3)"`         // 5日移动平均线，单位：元，短期趋势指标
-	MA10       float64 `json:"ma10" gorm:"type:decimal(10,3)"`        // 10日移动平均线，单位：元，短期趋势指标
-	MA20       float64 `json:"ma20" gorm:"type:decimal(10,3)"`        // 20日移动平均线，单位：元，中期趋势指标
-	MA60       float64 `json:"ma60" gorm:"type:decimal(10,3)"`        // 60日移动平均线，单位：元，长期趋势指标
-	RSI        float64 `json:"rsi" gorm:"type:decimal(8,4)"`          // 相对强弱指数，范围0-100，>70超买，<30超卖
-	MACD       float64 `json:"macd" gorm:"type:decimal(10,6)"`        // MACD指标，趋势跟踪指标，正值看涨，负值看跌
-	MACDSignal float64 `json:"macd_signal" gorm:"type:decimal(10,6)"` // MACD信号线，MACD的EMA平滑线
-	MACDHist   float64 `json:"macd_hist" gorm:"type:decimal(10,6)"`   // MACD柱状图，MACD-Signal，反映趋势变化
-	KDJK       float64 `json:"kdj_k" gorm:"type:decimal(8,4)"`        // KDJ指标K值，范围0-100，随机指标
-	KDJD       float64 `json:"kdj_d" gorm:"type:decimal(8,4)"`        // KDJ指标D值，范围0-100，K值的平滑线
-	KDJJ       float64 `json:"kdj_j" gorm:"type:decimal(8,4)"`        // KDJ指标J值，3K-2D，敏感度最高
-	CreatedAt  int64   `json:"created_at"`                            // 记录创建时间戳
+	Symbol    string  `json:"symbol" gorm:"column:symbol;size:10;not null;primaryKey"` // 股票代码，如：000001，联合主键1
+	TradeDate int     `json:"trade_date" gorm:"column:trade_date;not null;primaryKey"` // 交易日期，YYYYMMDD格式，如：20250910，联合主键2
+	Ma5       float64 `json:"ma5" gorm:"column:ma5;type:decimal(10,3)"`                // 5期移动平均线，单位：元，短期趋势指标
+	Ma10      float64 `json:"ma10" gorm:"column:ma10;type:decimal(10,3)"`              // 10期移动平均线，单位：元，短期趋势指标
+	Ma20      float64 `json:"ma20" gorm:"column:ma20;type:decimal(10,3)"`              // 20期移动平均线，单位：元，中期趋势指标
+	Ma60      float64 `json:"ma60" gorm:"column:ma60;type:decimal(10,3)"`              // 60期移动平均线，单位：元，长期趋势指标
+	Rsi6      float64 `json:"rsi6" gorm:"column:rsi6;type:decimal(8,4)"`               // 6期相对强弱指数，范围0-100，>70超买，<30超卖
+	Rsi12     float64 `json:"rsi12" gorm:"column:rsi12;type:decimal(8,4)"`             // 12期相对强弱指数，范围0-100，>70超买，<30超卖
+	Rsi24     float64 `json:"rsi24" gorm:"column:rsi24;type:decimal(8,4)"`             // 24期相对强弱指数，范围0-100，>70超买，<30超卖
+	Macd      float64 `json:"macd" gorm:"column:macd;type:decimal(10,6)"`              // Macd指标，趋势跟踪指标，正值看涨，负值看跌
+	MacdEma1  float64 `json:"macd_ema1" gorm:"column:macd_ema1;type:decimal(10,6)"`    // Macd Ema1
+	MacdEma2  float64 `json:"macd_ema2" gorm:"column:macd_ema2;type:decimal(10,6)"`    // Macd Ema2
+	MacdDif   float64 `json:"macd_dif" gorm:"column:macd_dif;type:decimal(10,6)"`      // Macd DIF线，快线减慢线的差值
+	MacdDea   float64 `json:"macd_dea" gorm:"column:macd_dea;type:decimal(10,6)"`      // Macd DEA线，DIF的EMA平滑线
+	KdjK      float64 `json:"kdj_k" gorm:"column:kdj_k;type:decimal(8,4)"`             // Kdj指标K值，范围0-100，随机指标
+	KdjD      float64 `json:"kdj_d" gorm:"column:kdj_d;type:decimal(8,4)"`             // Kdj指标D值，范围0-100，K值的平滑线
+	KdjJ      float64 `json:"kdj_j" gorm:"column:kdj_j;type:decimal(8,4)"`             // Kdj指标J值，3K-2D，敏感度最高
+
+	// 内部字段，用于动态表名
+	Period TechnicalIndicatorPeriod `json:"-" gorm:"-"` // 周期类型，不存储到数据库
 }
 
-// TableName 指定表名
-func (TechnicalIndicator) TableName() string {
-	return "technical_indicators"
+// TableName 动态指定表名
+func (t TechnicalIndicator) TableName() string {
+	switch t.Period {
+	case TechnicalIndicatorPeriodDaily:
+		return "daily_technical_indicators"
+	case TechnicalIndicatorPeriodWeekly:
+		return "weekly_technical_indicators"
+	case TechnicalIndicatorPeriodMonthly:
+		return "monthly_technical_indicators"
+	case TechnicalIndicatorPeriodYearly:
+		return "yearly_technical_indicators"
+	default:
+		return "daily_technical_indicators" // 默认使用日表
+	}
+}
+
+// NewTechnicalIndicator 创建技术指标实例
+func NewTechnicalIndicator(period TechnicalIndicatorPeriod) *TechnicalIndicator {
+	return &TechnicalIndicator{Period: period}
+}
+
+// NewDailyTechnicalIndicator 创建日技术指标实例
+func NewDailyTechnicalIndicator() *TechnicalIndicator {
+	return NewTechnicalIndicator(TechnicalIndicatorPeriodDaily)
+}
+
+// NewWeeklyTechnicalIndicator 创建周技术指标实例
+func NewWeeklyTechnicalIndicator() *TechnicalIndicator {
+	return NewTechnicalIndicator(TechnicalIndicatorPeriodWeekly)
+}
+
+// NewMonthlyTechnicalIndicator 创建月技术指标实例
+func NewMonthlyTechnicalIndicator() *TechnicalIndicator {
+	return NewTechnicalIndicator(TechnicalIndicatorPeriodMonthly)
+}
+
+// NewYearlyTechnicalIndicator 创建年技术指标实例
+func NewYearlyTechnicalIndicator() *TechnicalIndicator {
+	return NewTechnicalIndicator(TechnicalIndicatorPeriodYearly)
 }
 
 // SelectionResult 选股结果模型 - A股选股策略执行结果

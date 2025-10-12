@@ -14,6 +14,7 @@ type Services struct {
 	DataService        *DataService
 	PerformanceService *PerformanceService
 	ShareholderService *ShareholderService
+	IndicatorService   *IndicatorService
 	NotifyManger       *notification.Manager
 }
 
@@ -33,6 +34,7 @@ func NewServices(cfg *config.Config, logger *logger.Logger) (*Services, error) {
 		DataService:        nil, // 需要数据库连接后初始化
 		PerformanceService: nil, // 需要数据库连接后初始化
 		ShareholderService: nil, // 需要数据库连接后初始化
+		IndicatorService:   nil, // 需要数据库连接后初始化
 	}, nil
 }
 

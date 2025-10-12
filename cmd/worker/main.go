@@ -147,6 +147,8 @@ func initServicesWithDB(cfg *config.Config, db *gorm.DB) (*service.Services, err
 	shareholderRepo := repository.NewShareholder(db)
 	services.ShareholderService = service.NewShareholderService(shareholderRepo, eastMoneyCollector)
 
+	services.IndicatorService = service.GetIndicatorService(db)
+
 	logger.Info("所有服务初始化完成")
 	return services, nil
 }
