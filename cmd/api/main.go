@@ -1,116 +1,92 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"net/http"
 	"os"
+	"stock/internal/indicator"
+	"time"
 
-	"github.com/gin-gonic/gin"
-	"stock/internal/api"
 	"stock/internal/collector"
 	"stock/internal/config"
-	"stock/internal/database"
 	"stock/internal/logger"
-	"stock/internal/model"
 )
 
 func main() {
-	// 加载配置
+	// 初始化配置
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		fmt.Printf("Failed to load config: %v\n", err)
+		os.Exit(1)
 	}
 
-	// 初始化日志
-	logger2 := logger.NewLogger(cfg.Log)
-
-	// 获取内部的logrus.Logger用于API handler
-	logrusLogger := logger2.Logger
-
-	// 初始化数据库连接
-	dbManager, err := database.NewDatabase(&cfg.Database, logger2)
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-
-	db := dbManager.DB
-
-	// 自动迁移数据库表
-	if err := db.AutoMigrate(&model.Stock{}, &model.DailyData{}, &model.TechnicalIndicator{}, &model.Task{}); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
-	}
+	// 初始化全局日志器
+	logger.InitGlobalLogger(cfg.Log)
 
 	// 创建数据采集器
-	eastMoneyCollector := collector.GetCollectorFactory(logger.GetGlobalLogger()).GetEastMoneyCollector()
-	if err := eastMoneyCollector.Connect(); err != nil {
+	collector := collector.GetCollectorFactory(logger.GetGlobalLogger()).GetTongHuaShunCollector()
+	if err := collector.Connect(); err != nil {
 		log.Fatalf("Failed to connect to data source: %v", err)
 	}
 
-	// 创建采集器管理器
-	collectorManager := collector.NewCollectorManager(logger2)
-	collectorManager.RegisterCollector("eastmoney", eastMoneyCollector)
+	if daily, err := collector.GetDailyKLine("001208.SZ", time.Time{}, time.Time{}); err != nil {
+		log.Fatalf("GetDailyKLine err: %s", err.Error())
+	} else {
+		//var list = make([]indicator.IndStock, 0, len(daily))
+		//for _, data := range daily {
+		//	data := data
+		//	list = append(list, data)
+		//}
+		//result := indicator.RedThree(list)
+		//if result != nil {
+		//	fmt.Printf("买入信号出现在: %v\n", result.Signals.BuySignals)
+		//	fmt.Printf("大底信号出现在: %v\n", result.Signals.DaDiSignals)
+		//	fmt.Printf("警告信号出现在: %v\n", result.Signals.WarningSignals)
+		//}
 
-	// 创建API处理器（传入数据库连接）
-	apiHandler := api.NewHandler(collectorManager, logrusLogger, db)
+		//result := indicator.CalculateComplexIndicator(daily)
+		//if result != nil {
+		//	fmt.Printf("极底信号出现次数: %v\n", result.Signals.ExtremeBottom)
+		//	fmt.Printf("金叉信号出现次数: %v\n", result.Signals.GoldenCross)
+		//	fmt.Printf("抄底信号出现次数: %v\n", result.Signals.BottomFishing)
+		//}
 
-	// 设置Gin模式
-	gin.SetMode(gin.ReleaseMode)
+		// 计算时间控制指标
+		//result := indicator.CalculateTimeControlIndicator(daily)
+		//
+		//if result != nil {
+		//	fmt.Printf("红色柱状图数量: %d\n", len(result.RedSticks))
+		//	fmt.Printf("绿色柱状图数量: %d\n", len(result.GreenSticks))
+		//
+		//	// 打印最新的指标值
+		//	if len(result.A) > 0 {
+		//		fmt.Printf("最新A值: %.2f\n", result.A[len(result.A)-1])
+		//		fmt.Printf("最新A1值: %.2f\n", result.A1[len(result.A1)-1])
+		//	}
+		//}
 
-	// 创建路由
-	router := gin.Default()
-
-	// 添加CORS中间件
-	router.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
+		dynaInfo := &indicator.DynamicInfo{
+			Open:  daily[len(daily)-1].Open,
+			High:  daily[len(daily)-1].High,
+			Low:   daily[len(daily)-1].Low,
+			Close: daily[len(daily)-1].Close,
 		}
 
-		c.Next()
-	})
+		result := indicator.CalculateSupportResistance(daily, dynaInfo)
 
-	// API路由组
-	v1 := router.Group("/api/v1")
-	{
-		// 股票相关接口
-		stocks := v1.Group("/stocks")
-		{
-			stocks.GET("/", apiHandler.GetStockList)                                 // 获取股票列表
-			stocks.POST("/sync", apiHandler.SyncAllStocksAsync)                      // 异步同步所有股票数据到数据库
-			stocks.GET("/stats", apiHandler.GetStockStats)                           // 获取股票统计信息
-			stocks.GET("/search", apiHandler.SearchStocks)                           // 搜索股票
-			stocks.GET("/:code", apiHandler.GetStockDetail)                          // 获取股票详情
-			stocks.GET("/:code/kline", apiHandler.GetKLineData)                      // 获取K线数据（只查询数据库）
-			stocks.POST("/:code/kline/refresh", apiHandler.RefreshKLineData)         // 刷新K线数据（从API获取并保存）
-			stocks.GET("/:code/kline/range", apiHandler.GetKLineDataRange)           // 获取K线数据范围
-			stocks.GET("/:code/kline/freshness", apiHandler.CheckKLineDataFreshness) // 检查数据新鲜度
-			stocks.GET("/:code/performance", apiHandler.GetPerformanceReports)       // 获取业绩报表数据
-			stocks.POST("/:code/sync-daily", apiHandler.SyncSingleStockAsync)        // 异步刷新单只股票日K数据
+		if result != nil {
+			summary := result.GetSignalSummary()
+			fmt.Printf("当前趋势级别: %s\n", summary["trend_level"])
+			fmt.Printf("相对于中线位置: %s\n", summary["position_vs_center"])
+			fmt.Printf("买入信号数量: %d\n", summary["buy_signals_count"])
+			fmt.Printf("卖出信号数量: %d\n", summary["sell_signals_count"])
+
+			// 打印支撑阻力位
+			if len(result.Support) > 0 {
+				fmt.Printf("支撑位: %.3f\n", result.Support[0])
+				fmt.Printf("阻力位: %.3f\n", result.Resistance[0])
+				fmt.Printf("中线: %.3f\n", result.CenterLine[0])
+			}
 		}
-
-		// 异步任务相关接口
-		tasks := v1.Group("/tasks")
-		{
-			tasks.GET("/", apiHandler.ListTasks)            // 获取任务列表
-			tasks.GET("/:taskId", apiHandler.GetTaskStatus) // 获取任务状态
-			tasks.DELETE("/:taskId", apiHandler.CancelTask) // 取消任务
-		}
-
-		// 实时数据接口
-		v1.GET("/realtime", apiHandler.GetRealtimeData) // 获取实时数据
-	}
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	logger.Infof("Starting API server on :%s", port)
-	if err := router.Run(":" + port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
 	}
 }
