@@ -842,13 +842,33 @@ CREATE TABLE `backtest_results` (
   KEY `idx_backtest_date` (`start_date`,`end_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='回测结果表 - A股策略回测数据';
 
--- 插入一些示例数据
-INSERT INTO `stocks` (`ts_code`, `symbol`, `name`, `area`, `industry`, `market`, `list_date`, `is_active`, `created_at`, `updated_at`) VALUES
-('000001.SZ', '000001', '平安银行', '深圳', '银行', 'SZ', '1991-04-03 00:00:00.000', 1, NOW(3), NOW(3)),
-('000002.SZ', '000002', '万科A', '深圳', '房地产开发', 'SZ', '1991-01-29 00:00:00.000', 1, NOW(3), NOW(3)),
-('600000.SH', '600000', '浦发银行', '上海', '银行', 'SH', '1999-11-10 00:00:00.000', 1, NOW(3), NOW(3)),
-('600036.SH', '600036', '招商银行', '深圳', '银行', 'SH', '2002-04-09 00:00:00.000', 1, NOW(3), NOW(3)),
-('000858.SZ', '000858', '五粮液', '宜宾', '白酒', 'SZ', '1998-04-27 00:00:00.000', 1, NOW(3), NOW(3));
+-- 44. 机器人配置管理表
+CREATE TABLE `robot_configs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID，数据库自增',
+  `robot_name` varchar(100) NOT NULL DEFAULT '' COMMENT '机器人名称，如：股票选股通知、交易提醒机器人',
+  `robot_type` int NOT NULL DEFAULT '1' COMMENT '机器人类型，1=钉钉机器人，2=企微机器人',
+  `webhook_url` varchar(500) NOT NULL DEFAULT '' COMMENT 'Webhook地址，机器人的回调URL',
+  `access_token` varchar(200) DEFAULT '' COMMENT '访问令牌，钉钉机器人需要的token',
+  `secret` varchar(200) DEFAULT '' COMMENT '签名密钥，用于消息签名验证',
+  `description` varchar(500) DEFAULT '' COMMENT '机器人描述，说明机器人的用途和功能',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用，1=启用，0=禁用',
+  `created_by` varchar(50) DEFAULT 'system' COMMENT '创建者，记录配置创建人员',
+  `updated_by` varchar(50) DEFAULT 'system' COMMENT '更新者，记录配置修改人员',
+  `created_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) COMMENT '记录创建时间',
+  `updated_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '记录更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_robot_name_type` (`robot_name`,`robot_type`),
+  KEY `idx_robot_configs_type` (`robot_type`),
+  KEY `idx_robot_configs_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='机器人配置管理表 - 钉钉和企微机器人配置信息';
+
+-- 插入钉钉和企微机器人配置示例数据
+INSERT INTO `robot_configs` (`robot_name`, `robot_type`, `webhook_url`, `access_token`, `secret`, `description`, `is_active`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+('股票选股通知机器人', 1, 'https://oapi.dingtalk.com/robot/send?access_token=xxx', 'your_access_token_here', 'your_secret_here', '每日股票选股结果通知', 1, 'admin', 'admin', NOW(3), NOW(3)),
+('价格预警机器人', 1, 'https://oapi.dingtalk.com/robot/send?access_token=yyy', 'your_access_token_here', 'your_secret_here', '股票价格异常波动预警', 1, 'admin', 'admin', NOW(3), NOW(3)),
+('交易信号机器人', 2, 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx', NULL, NULL, '交易买卖信号推送', 1, 'admin', 'admin', NOW(3), NOW(3)),
+('市场资讯机器人', 2, 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=yyy', NULL, NULL, '重要市场资讯和公告推送', 1, 'admin', 'admin', NOW(3), NOW(3)),
+('回测结果机器人', 1, 'https://oapi.dingtalk.com/robot/send?access_token=zzz', 'your_access_token_here', 'your_secret_here', '策略回测结果通知', 1, 'admin', 'admin', NOW(3), NOW(3));
 
 -- 创建完成提示
 SELECT '数据库表创建完成！' AS message;

@@ -412,6 +412,9 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock) error {
 		}
 		startDate = tradeDate
 		if time.Now().Format("20060102") == tradeDateStr {
+			if latestData.UpdatedAt.Format(time.TimeOnly) > "16:00:00" { // 今日收盘后已经更新过一次，无需再更新
+				return nil
+			}
 			return updateStockTodayKLine(services, stock)
 		}
 	}

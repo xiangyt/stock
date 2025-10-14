@@ -118,7 +118,7 @@ func (s *DataService) SyncStockActiveList() ([]*model.Stock, bool, error) {
 	//logger.Infof("Fetched %d stocks", len(stocks))
 
 	todayDate, _ := strconv.Atoi(time.Now().Format("20060102"))
-	dateCnt := 0
+	dateCnt := 0 // 没有当日数据的股票数量
 	var codes []string
 	var res = make([]*model.Stock, 0, len(stocks))
 	var todayData = map[string]model.DailyData{}
@@ -132,18 +132,18 @@ func (s *DataService) SyncStockActiveList() ([]*model.Stock, bool, error) {
 		if today.TradeDate != todayDate {
 			dateCnt++
 		}
-		if i-dateCnt > 50 && i < 100 { // 今天不是工作日
+		if dateCnt > 50 && i < 100 { // 前100只里面，超过50只没有今日数据，判定今天不是工作日
 			return nil, false, nil
 		}
+		stock.Name = name
 		if strings.HasPrefix(name, "XD") { // 除权日清理所有k线数据
 			codes = append(codes, stock.TsCode)
-			stocks[i].Name = name
 		} else if strings.HasPrefix(name, "PT") { // 退市
-			stocks[i].IsActive = false
+			stock.IsActive = false
 		} else {
 			todayData[stock.TsCode] = *today
 		}
-		res = append(res, stocks[i])
+		res = append(res, stock)
 		// 批量更新或插入股票数据
 		if err := s.stockRepo.UpsertStocks([]model.Stock{*stock}); err != nil {
 			logger.Errorf("failed to upsert stocks: %v", err)
