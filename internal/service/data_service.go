@@ -128,12 +128,12 @@ func (s *DataService) SyncStockActiveList() ([]*model.Stock, bool, error) {
 			logger.Errorf("GetTodayData[%s] failed. err:%s", stock.TsCode, err.Error())
 			continue
 		}
-
-		if today.TradeDate != todayDate {
-			dateCnt++
-		}
 		if dateCnt > 50 && i < 100 { // 前100只里面，超过50只没有今日数据，判定今天不是工作日
 			return nil, false, nil
+		}
+		if today.TradeDate != todayDate {
+			dateCnt++
+			continue
 		}
 		stock.Name = name
 		if strings.HasPrefix(name, "XD") { // 除权日清理所有k线数据
