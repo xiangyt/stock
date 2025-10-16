@@ -151,9 +151,9 @@ func (s *DataService) SyncStockActiveList() ([]*model.Stock, bool, error) {
 		}
 	}
 
-	for _, today := range todayData {
-		_ = s.dailyDataRepo.UpsertDailyData([]model.DailyData{today})
-	}
+	//for _, today := range todayData {
+	//	_ = s.dailyDataRepo.UpsertDailyData([]model.DailyData{today})
+	//}
 
 	// 除权日清理所有k线数据
 	for _, code := range codes {
