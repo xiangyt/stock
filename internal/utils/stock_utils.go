@@ -27,7 +27,7 @@ func ConvertToTsCode(code string) string {
 // ParseTradeDate 解析交易日期
 func ParseTradeDate(date int) (time.Time, error) {
 	tradeDateStr := fmt.Sprintf("%d", date)
-	tradeDate, err := time.Parse("20060102", tradeDateStr)
+	tradeDate, err := time.ParseInLocation("20060102", tradeDateStr, time.Local)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("解析交易日期失败: %v", err)
 	}

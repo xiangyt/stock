@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"stock/internal/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -1215,8 +1216,7 @@ func (e *EastMoneyCollector) extractJSONFromJSONP(body string) (string, error) {
 // isInDateRange 检查交易日期是否在指定的时间范围内
 func (e *EastMoneyCollector) isInDateRange(tradeDate int, startDate, endDate time.Time) bool {
 	// 将int类型的交易日期转换为time.Time
-	tradeDateStr := fmt.Sprintf("%d", tradeDate)
-	date, err := time.Parse("20060102", tradeDateStr)
+	date, err := utils.ParseTradeDate(tradeDate)
 	if err != nil {
 		e.logger.Warnf("Failed to parse trade date %d: %v", tradeDate, err)
 		return false

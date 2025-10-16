@@ -84,7 +84,7 @@ func setupCronJobs(c *cron.Cron, services *service.Services) {
 		_ = collectSkipStock(services)
 	})
 
-	c.AddFunc("0 10 17 * * *", func() {
+	c.AddFunc("0 10 18 * * *", func() {
 		if !work {
 			return
 		}
@@ -99,11 +99,13 @@ func setupCronJobs(c *cron.Cron, services *service.Services) {
 				list = append(list, stock)
 			}
 		}
-		// 更新本周K线数据
-		_ = collectThisWeekKLineData(services, list)
-		// 更新本月K线数据
+		// 更新日K线数据
+		_ = collectTodayKLineData(services, list)
+		// 更新周K线数据
+		_ = collectThisWeeklyKLineData(services, list)
+		// 更新月K线数据
 		_ = collectThisMonthlyKLineData(services, list)
-		// 更新本年K线数据
+		// 更新年K线数据
 		_ = collectThisYearlyKLineData(services, list)
 	})
 
@@ -217,9 +219,9 @@ func collectSkipStock(services *service.Services) error {
 	return nil
 }
 
-// collectThisWeekKLineData 更新本周K线数据
-func collectThisWeekKLineData(services *service.Services, stocks []*model.Stock) error {
-	logger.Info("开始更新本周K线数据...")
+// collectTodayKLineData 更新本周K线数据
+func collectTodayKLineData(services *service.Services, stocks []*model.Stock) error {
+	logger.Info("开始更新本日K线数据...")
 
 	executor := utils.NewConcurrentExecutor(maxConcurrent, 45*time.Minute) // 最大100个并发，30分钟超时
 	defer executor.Close()
@@ -231,6 +233,55 @@ func collectThisWeekKLineData(services *service.Services, stocks []*model.Stock)
 		stock := stock // 避免闭包问题
 		tasks = append(tasks, &utils.SimpleTask{
 			ID:          fmt.Sprintf("daily_kline_%s", stock.TsCode),
+			Description: fmt.Sprintf("采集股票 %s 的日K线数据", stock.TsCode),
+			Func: func(ctx context.Context) error {
+				return syncStockDailyKLine(services, stock)
+			},
+		})
+	}
+
+	// 执行任务
+	results, stats := executor.ExecuteBatch(ctx, tasks)
+
+	// 统计结果
+	successCount := 0
+
+	for _, result := range results {
+		if result.Success {
+			successCount++
+		} else {
+			logger.Errorf("股票日K线采集失败: %v", result.Error)
+		}
+	}
+
+	completionMsg := fmt.Sprintf("📊 日K线数据采集完成\n总数: %d\n成功: %d\n失败: %d\n总耗时: %v\n平均耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime), stats.AverageDuration)
+
+	logger.Infof("日K线数据采集完成 - 总数: %d, 成功: %d, 失败: %d, 总耗时: %v, 平均耗时: %v",
+		stats.TotalTasks, successCount, stats.FailedTasks, stats.EndTime.Sub(stats.StartTime), stats.AverageDuration)
+
+	// 同步日志信息给机器人
+	services.NotifyManger.SendToAllBots(context.Background(), &notification.Message{
+		Content: completionMsg,
+		MsgType: notification.MessageTypeText,
+	})
+	return nil
+}
+
+// collectThisWeeklyKLineData 更新本周K线数据
+func collectThisWeeklyKLineData(services *service.Services, stocks []*model.Stock) error {
+	logger.Info("开始更新本周K线数据...")
+
+	executor := utils.NewConcurrentExecutor(maxConcurrent, 45*time.Minute) // 最大100个并发，30分钟超时
+	defer executor.Close()
+	ctx := context.Background()
+
+	// 创建任务列表
+	tasks := make([]utils.Task, 0, len(stocks))
+	for _, stock := range stocks {
+		stock := stock // 避免闭包问题
+		tasks = append(tasks, &utils.SimpleTask{
+			ID:          fmt.Sprintf("weekly_kline_%s", stock.TsCode),
 			Description: fmt.Sprintf("采集股票 %s 的周K线数据", stock.TsCode),
 			Func: func(ctx context.Context) error {
 				return syncStockWeeklyKLine(services, stock)
@@ -279,7 +330,7 @@ func collectThisMonthlyKLineData(services *service.Services, stocks []*model.Sto
 	for _, stock := range stocks {
 		stock := stock // 避免闭包问题
 		tasks = append(tasks, &utils.SimpleTask{
-			ID:          fmt.Sprintf("daily_kline_%s", stock.TsCode),
+			ID:          fmt.Sprintf("monthly_kline_%s", stock.TsCode),
 			Description: fmt.Sprintf("采集股票 %s 的月K线数据", stock.TsCode),
 			Func: func(ctx context.Context) error {
 				return syncStockMonthlyKLine(services, stock)
@@ -328,7 +379,7 @@ func collectThisYearlyKLineData(services *service.Services, stocks []*model.Stoc
 	for _, stock := range stocks {
 		stock := stock // 避免闭包问题
 		tasks = append(tasks, &utils.SimpleTask{
-			ID:          fmt.Sprintf("daily_kline_%s", stock.TsCode),
+			ID:          fmt.Sprintf("yearly_kline_%s", stock.TsCode),
 			Description: fmt.Sprintf("采集股票 %s 的年K线数据", stock.TsCode),
 			Func: func(ctx context.Context) error {
 				return syncStockYearlyKLine(services, stock)
@@ -406,7 +457,7 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock) error {
 	} else {
 		// 将TradeDate从int转换为time.Time进行比较
 		tradeDateStr := fmt.Sprintf("%d", latestData.TradeDate)
-		tradeDate, err := time.Parse("20060102", tradeDateStr)
+		tradeDate, err := utils.ParseTradeDate(latestData.TradeDate)
 		if err != nil {
 			return fmt.Errorf("解析交易日期失败: %v", err)
 		}
@@ -434,8 +485,7 @@ func syncStockDailyKLine(services *service.Services, stock *model.Stock) error {
 
 	latestData, _ = services.DataService.GetLatestPrice(stock.TsCode)
 	if latestData != nil { // 日k一个月没更新，可能已经退市了
-		tradeDateStr := fmt.Sprintf("%d", latestData.TradeDate)
-		tradeDate, err := time.Parse("20060102", tradeDateStr)
+		tradeDate, err := utils.ParseTradeDate(latestData.TradeDate)
 		if err != nil {
 			return fmt.Errorf("解析交易日期失败: %v", err)
 		}
@@ -469,8 +519,7 @@ func syncStockWeeklyKLine(services *service.Services, stock *model.Stock) error 
 		logger.Debugf("股票 %s 没有历史周K线数据，从1990年1月1日开始采集", stock.TsCode)
 	} else {
 		// 删除最新的一条周K线数据，确保数据完整性
-		tradeDateStr := fmt.Sprintf("%d", latestWeeklyData.TradeDate)
-		tradeDate, err := time.Parse("20060102", tradeDateStr)
+		tradeDate, err := utils.ParseTradeDate(latestWeeklyData.TradeDate)
 		if err != nil {
 			return fmt.Errorf("解析最新周K线交易日期失败: %v", err)
 		}
@@ -524,8 +573,7 @@ func syncStockMonthlyKLine(services *service.Services, stock *model.Stock) error
 		logger.Debugf("股票 %s 没有历史月K线数据，从1990年1月1日开始采集", stock.TsCode)
 	} else {
 		// 删除最新的一条月K线数据，确保数据完整性
-		tradeDateStr := fmt.Sprintf("%d", latestMonthlyData.TradeDate)
-		tradeDate, err := time.Parse("20060102", tradeDateStr)
+		tradeDate, err := utils.ParseTradeDate(latestMonthlyData.TradeDate)
 		if err != nil {
 			return fmt.Errorf("解析最新月K线交易日期失败: %v", err)
 		}
@@ -580,8 +628,7 @@ func syncStockYearlyKLine(services *service.Services, stock *model.Stock) error 
 		logger.Debugf("股票 %s 没有历史年K线数据，从1990年1月1日开始采集", stock.TsCode)
 	} else {
 		// 删除最新的一条年K线数据，确保数据完整性
-		tradeDateStr := fmt.Sprintf("%d", latestYearlyData.TradeDate)
-		tradeDate, err := time.Parse("20060102", tradeDateStr)
+		tradeDate, err := utils.ParseTradeDate(latestYearlyData.TradeDate)
 		if err != nil {
 			return fmt.Errorf("解析最新年K线交易日期失败: %v", err)
 		}
@@ -837,8 +884,7 @@ func collectAndPersistShareholderCounts(services *service.Services) error {
 // isLastTradeDate 是否为最近一个交易日
 func isLastTradeDate(tradeDate int) bool {
 	// 将输入的交易日期转换为time.Time
-	tradeDateStr := fmt.Sprintf("%d", tradeDate)
-	inputDate, err := time.Parse("20060102", tradeDateStr)
+	inputDate, err := utils.ParseTradeDate(tradeDate)
 	if err != nil {
 		logger.Errorf("解析交易日期失败: %v", err)
 		return false

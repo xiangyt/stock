@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"stock/internal/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -516,7 +517,11 @@ func (t *TongHuaShunCollector) GetDailyKLine(tsCode string, startDate, endDate t
 		dailyData = append(dailyData, daily)
 	}
 
-	return dailyData, nil
+	today, _, err := t.GetTodayData(tsCode)
+	if err != nil {
+		return nil, err
+	}
+	return append(dailyData, *today), nil
 }
 
 // GetWeeklyKLine 获取周K线数据
@@ -546,7 +551,17 @@ func (t *TongHuaShunCollector) GetWeeklyKLine(tsCode string, startDate, endDate 
 		}
 		weeklyData = append(weeklyData, weekly)
 	}
-
+	data, err := t.GetThisWeekData(tsCode)
+	if err != nil {
+		return nil, err
+	}
+	if len(weeklyData) == 0 {
+		weeklyData = append(weeklyData, *data)
+	} else if weeklyData[len(weeklyData)-1].TradeDate != data.GetTradeDate() {
+		weeklyData = append(weeklyData, *data)
+	} else {
+		weeklyData[len(weeklyData)-1] = *data
+	}
 	return weeklyData, nil
 }
 
@@ -578,6 +593,17 @@ func (t *TongHuaShunCollector) GetMonthlyKLine(tsCode string, startDate, endDate
 		monthlyData = append(monthlyData, monthly)
 	}
 
+	data, err := t.GetThisMonthData(tsCode)
+	if err != nil {
+		return nil, err
+	}
+	if len(monthlyData) == 0 {
+		monthlyData = append(monthlyData, *data)
+	} else if monthlyData[len(monthlyData)-1].TradeDate != data.GetTradeDate() {
+		monthlyData = append(monthlyData, *data)
+	} else {
+		monthlyData[len(monthlyData)-1] = *data
+	}
 	return monthlyData, nil
 }
 
@@ -639,7 +665,17 @@ func (t *TongHuaShunCollector) GetYearlyKLine(tsCode string, startDate, endDate 
 		}
 		yearlyData = append(yearlyData, yearly)
 	}
-
+	data, err := t.GetThisYearData(tsCode)
+	if err != nil {
+		return nil, err
+	}
+	if len(yearlyData) == 0 {
+		yearlyData = append(yearlyData, *data)
+	} else if yearlyData[len(yearlyData)-1].TradeDate != data.GetTradeDate() {
+		yearlyData = append(yearlyData, *data)
+	} else {
+		yearlyData[len(yearlyData)-1] = *data
+	}
 	return yearlyData, nil
 }
 
@@ -1440,8 +1476,7 @@ func (t *TongHuaShunCollector) filterDataByDateRange(data []model.DailyData, sta
 
 	for _, item := range data {
 		// 将int类型的交易日期转换为time.Time
-		tradeDateStr := fmt.Sprintf("%d", item.TradeDate)
-		date, err := time.Parse("20060102", tradeDateStr)
+		date, err := utils.ParseTradeDate(item.TradeDate)
 		if err != nil {
 			t.logger.Warnf("Failed to parse trade date %d: %v", item.TradeDate, err)
 			continue
