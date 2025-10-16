@@ -1,6 +1,9 @@
 package indicator
 
-import "math"
+import (
+	"math"
+	"stock/internal/model"
+)
 
 // RedThreeStock 红三角抄底指标
 
@@ -199,7 +202,7 @@ func ABS(data []float64) []float64 {
 }
 
 // RedThree 计算主要指标
-func RedThree(stocks []IndStock) *IndicatorResult {
+func RedThree(stocks []model.DailyData) *IndicatorResult {
 	if len(stocks) < 33 { // 需要至少33个数据点来计算VAR4
 		return nil
 	}

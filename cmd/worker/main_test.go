@@ -110,8 +110,8 @@ func TestSyncStockDailyKLine(t *testing.T) {
 
 	//syncStockDailyKLine(services, &model.Stock{TsCode: "001208.SZ"})
 	//syncStockWeeklyKLine(services, &model.Stock{TsCode: "001208.SZ"})
-	//syncStockMonthlyKLine(services, &model.Stock{TsCode: "001208.SZ"})
-	syncStockYearlyKLine(services, &model.Stock{TsCode: "001208.SZ"})
+	syncStockMonthlyKLine(services, &model.Stock{TsCode: "001208.SZ"})
+	//syncStockYearlyKLine(services, &model.Stock{TsCode: "001208.SZ"})
 }
 
 func TestWeeklyKLineCollection(t *testing.T) {

@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"stock/internal/collector"
 	"stock/internal/config"
 	"stock/internal/database"
+	"stock/internal/indicator"
 	"stock/internal/logger"
 	"stock/internal/model"
 	"stock/internal/notification"
@@ -75,6 +78,49 @@ func main() {
 
 const maxConcurrent = 100 // 最大并发量
 func setupCronJobs(c *cron.Cron, services *service.Services) {
+
+	c.AddFunc("0 0 12 * * *", func() {
+		stocks, err := services.DataService.GetAllStocks()
+		if err != nil {
+			return
+		}
+
+		ch := []chan *model.Stock{
+			make(chan *model.Stock, 100),
+			make(chan *model.Stock, 100),
+			make(chan *model.Stock, 100),
+			make(chan *model.Stock, 100),
+		}
+
+		go func() {
+			sendSignal(ch[0], "红三角抄底指标 - 买入信号", services.NotifyManger)
+		}()
+		go func() {
+			sendSignal(ch[1], "红三角抄底指标 - 大底信号", services.NotifyManger)
+		}()
+		go func() {
+			sendSignal(ch[2], "红顶底指标 - 绝底信号", services.NotifyManger)
+		}()
+		go func() {
+			sendSignal(ch[3], "红顶底指标 - 见涨信号", services.NotifyManger)
+		}()
+
+		var wg sync.WaitGroup
+		for _, stock := range stocks {
+			stock := stock
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := calculateStockSignal(stock, ch); err != nil {
+					return
+				}
+			}()
+		}
+		wg.Wait()
+		for _, c := range ch {
+			close(c)
+		}
+	})
 
 	c.AddFunc("0 10 16 * * *", func() {
 		if !isWorkingDay(time.Now()) {
@@ -879,6 +925,54 @@ func collectAndPersistShareholderCounts(services *service.Services) error {
 	})
 
 	return nil
+}
+
+func calculateStockSignal(stock *model.Stock, ch []chan *model.Stock) error {
+	c, err := collector.GetCollectorFactory(logger.GetGlobalLogger()).CreateCollector(collector.CollectorTypeTongHuaShun)
+	if err != nil {
+		return err
+	}
+
+	daily, err := c.GetDailyKLine(stock.TsCode, time.Time{}, time.Time{})
+	if err != nil {
+		return err
+	}
+	today := time.Now().Format("20060102")
+	i, _ := strconv.Atoi(today)
+	res := indicator.RedThree(daily)
+	if res != nil {
+		if len(res.Signals.BuySignals) > 0 && res.Signals.BuySignals[len(res.Signals.BuySignals)-1] == i {
+			ch[0] <- stock
+		}
+		if len(res.Signals.DaDiSignals) > 0 && res.Signals.DaDiSignals[len(res.Signals.DaDiSignals)-1] == i {
+			ch[1] <- stock
+		}
+	}
+
+	res2 := indicator.CalculateComplexIndicator(daily)
+	if res2 != nil {
+		if len(res2.Signals.AbsoluteBottom) > 0 && res2.Signals.AbsoluteBottom[len(res2.Signals.AbsoluteBottom)-1] == i {
+			ch[2] <- stock
+		}
+		if len(res2.Signals.SeeRise) > 0 && res2.Signals.SeeRise[len(res2.Signals.SeeRise)-1] == i {
+			ch[3] <- stock
+		}
+	}
+	return nil
+}
+
+func sendSignal(ch <-chan *model.Stock, prefix string, robot *notification.Manager) {
+	var msgs []string
+	for stock := range ch {
+		msgs = append(msgs, fmt.Sprintf("%s(%s)", stock.Name, stock.TsCode))
+	}
+	if len(msgs) == 0 {
+		msgs = append(msgs, "无")
+	}
+	robot.SendToAllBots(context.Background(), &notification.Message{
+		Content: fmt.Sprintf("%s\r\n%s", prefix, strings.Join(msgs, "\r\n")),
+		MsgType: notification.MessageTypeText,
+	})
 }
 
 // isLastTradeDate 是否为最近一个交易日
