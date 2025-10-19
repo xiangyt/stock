@@ -521,7 +521,14 @@ func (t *TongHuaShunCollector) GetDailyKLine(tsCode string, startDate, endDate t
 	if err != nil {
 		return nil, err
 	}
-	return append(dailyData, *today), nil
+	if len(dailyData) == 0 {
+		dailyData = append(dailyData, *today)
+	} else if dailyData[len(dailyData)-1].TradeDate != today.GetTradeDate() {
+		dailyData = append(dailyData, *today)
+	} else {
+		dailyData[len(dailyData)-1] = *today
+	}
+	return dailyData, nil
 }
 
 // GetWeeklyKLine 获取周K线数据

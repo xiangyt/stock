@@ -9,6 +9,7 @@ import (
 	"stock/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // WeeklyData 周K线数据仓库
@@ -102,7 +103,10 @@ func (r *WeeklyData) upsertDataInBatches(tableName string, data []model.WeeklyDa
 		batch := data[i:end]
 
 		// 使用 ON DUPLICATE KEY UPDATE 进行批量 upsert
-		if err := r.db.Table(tableName).Save(&batch).Error; err != nil {
+		if err := r.db.Table(tableName).Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "ts_code"}, {Name: "trade_date"}},
+			DoUpdates: clause.AssignmentColumns([]string{"open", "high", "low", "close", "volume", "amount", "updated_at"}),
+		}).Create(&batch).Error; err != nil {
 			return fmt.Errorf("failed to upsert batch %d-%d: %w", i, end-1, err)
 		}
 
