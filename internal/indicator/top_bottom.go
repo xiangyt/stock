@@ -30,6 +30,8 @@ type TimeControlIndicatorResult struct {
 	// 图形化结果
 	RedSticks   []StickData `json:"red_sticks"`   // 红色柱状图
 	GreenSticks []StickData `json:"green_sticks"` // 绿色柱状图
+
+	Buy []int `json:"buy"` // 买入信号
 }
 
 // StickData 柱状图数据结构
@@ -100,7 +102,7 @@ func CalculateTimeControlIndicator(data []model.DailyData) *TimeControlIndicator
 	result.A1 = calculateA1(result.AD8, result.AS1)
 
 	// 10. 生成柱状图数据
-	result.RedSticks = calculateRedSticks(result.A, data)
+	result.RedSticks, result.Buy = calculateRedSticks(result.A, data)
 	result.GreenSticks = calculateGreenSticks(result.A1, data)
 
 	return result
@@ -392,8 +394,9 @@ func calculateA1(ad8, as1 []float64) []float64 {
 }
 
 // 计算红色柱状图: STICKLINE(A>-150,0,A,8,0)
-func calculateRedSticks(a []float64, data []model.DailyData) []StickData {
+func calculateRedSticks(a []float64, data []model.DailyData) ([]StickData, []int) {
 	var sticks []StickData
+	var buy []int
 	for i, value := range a {
 		if value > -150 {
 			sticks = append(sticks, StickData{
@@ -402,9 +405,12 @@ func calculateRedSticks(a []float64, data []model.DailyData) []StickData {
 				Start: 0,
 				End:   value,
 			})
+			if value > 5 {
+				buy = append(buy, data[i].GetTradeDate())
+			}
 		}
 	}
-	return sticks
+	return sticks, buy
 }
 
 // 计算绿色柱状图: STICKLINE(A1>0,0,15*A1,8,0)

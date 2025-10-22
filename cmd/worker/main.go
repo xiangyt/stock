@@ -79,47 +79,16 @@ func main() {
 const maxConcurrent = 100 // 最大并发量
 func setupCronJobs(c *cron.Cron, services *service.Services) {
 
+	c.AddFunc("0 40 9 * * *", func() {
+		calSignals(services)
+	})
+
 	c.AddFunc("0 0 12 * * *", func() {
-		stocks, err := services.DataService.GetAllStocks()
-		if err != nil {
-			return
-		}
+		calSignals(services)
+	})
 
-		ch := []chan *model.Stock{
-			make(chan *model.Stock, 100),
-			make(chan *model.Stock, 100),
-			make(chan *model.Stock, 100),
-			make(chan *model.Stock, 100),
-		}
-
-		go func() {
-			sendSignal(ch[0], "红三角抄底指标 - 买入信号", services.NotifyManger)
-		}()
-		go func() {
-			sendSignal(ch[1], "红三角抄底指标 - 大底信号", services.NotifyManger)
-		}()
-		go func() {
-			sendSignal(ch[2], "红顶底指标 - 绝底信号", services.NotifyManger)
-		}()
-		go func() {
-			sendSignal(ch[3], "红顶底指标 - 见涨信号", services.NotifyManger)
-		}()
-
-		var wg sync.WaitGroup
-		for _, stock := range stocks {
-			stock := stock
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if err := calculateStockSignal(stock, ch); err != nil {
-					return
-				}
-			}()
-		}
-		wg.Wait()
-		for _, c := range ch {
-			close(c)
-		}
+	c.AddFunc("0 40 14 * * *", func() {
+		calSignals(services)
 	})
 
 	c.AddFunc("0 10 16 * * *", func() {
@@ -199,6 +168,53 @@ func initServicesWithDB(cfg *config.Config, db *gorm.DB) (*service.Services, err
 
 	logger.Info("所有服务初始化完成")
 	return services, nil
+}
+
+func calSignals(services *service.Services) {
+	stocks, err := services.DataService.GetAllStocks()
+	if err != nil {
+		return
+	}
+
+	ch := []chan *model.Stock{
+		make(chan *model.Stock, 100),
+		make(chan *model.Stock, 100),
+		make(chan *model.Stock, 100),
+		make(chan *model.Stock, 100),
+		make(chan *model.Stock, 100),
+	}
+
+	go func() {
+		sendSignal(ch[0], "红三角抄底指标 - 买入信号", services.NotifyManger)
+	}()
+	go func() {
+		sendSignal(ch[1], "红三角抄底指标 - 大底信号", services.NotifyManger)
+	}()
+	go func() {
+		sendSignal(ch[2], "红顶底指标 - 绝底信号", services.NotifyManger)
+	}()
+	go func() {
+		sendSignal(ch[3], "红顶底指标 - 见涨信号", services.NotifyManger)
+	}()
+	go func() {
+		sendSignal(ch[4], "红顶底(极底) + 顶部信号(红柱)", services.NotifyManger)
+	}()
+
+	var wg sync.WaitGroup
+	for _, stock := range stocks {
+		stock := stock
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := calculateStockSignal(stock, ch); err != nil {
+				return
+			}
+		}()
+	}
+	wg.Wait()
+	for _, c := range ch {
+		close(c)
+	}
 }
 
 var work = true // 今天是否工作日
@@ -958,13 +974,20 @@ func calculateStockSignal(stock *model.Stock, ch []chan *model.Stock) error {
 			ch[3] <- stock
 		}
 	}
+
+	res3 := indicator.CalculateTimeControlIndicator(daily)
+	if res2 != nil && len(res2.Signals.ExtremeBottom) > 0 && res2.Signals.ExtremeBottom[len(res2.Signals.ExtremeBottom)-1] == i {
+		if res3 != nil && len(res3.Buy) > 0 && res3.Buy[len(res3.Buy)-1] == i {
+			ch[4] <- stock
+		}
+	}
 	return nil
 }
 
 func sendSignal(ch <-chan *model.Stock, prefix string, robot *notification.Manager) {
 	var msgs []string
 	for stock := range ch {
-		msgs = append(msgs, fmt.Sprintf("%s(%s)", stock.Name, stock.TsCode))
+		msgs = append(msgs, fmt.Sprintf("%s(%s)", stock.Name, stock.Symbol))
 	}
 	if len(msgs) == 0 {
 		msgs = append(msgs, "无")
