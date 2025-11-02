@@ -17,7 +17,7 @@ import (
 type KLineService struct {
 	db               *gorm.DB
 	logger           *logrus.Logger
-	collectorManager *collector.CollectorManager
+	collectorFactory *collector.CollectorFactory
 	dailyDataRepo    *repository.DailyData
 }
 
@@ -27,12 +27,12 @@ var (
 )
 
 // GetKLineService 获取K线数据服务单例
-func GetKLineService(db *gorm.DB, log *logrus.Logger, collectorManager *collector.CollectorManager) *KLineService {
+func GetKLineService(db *gorm.DB, log *logrus.Logger, collectorFactory *collector.CollectorFactory) *KLineService {
 	klineServiceOnce.Do(func() {
 		klineServiceInstance = &KLineService{
 			db:               db,
 			logger:           log,
-			collectorManager: collectorManager,
+			collectorFactory: collectorFactory,
 			dailyDataRepo:    repository.NewDailyData(db),
 		}
 	})
@@ -40,8 +40,8 @@ func GetKLineService(db *gorm.DB, log *logrus.Logger, collectorManager *collecto
 }
 
 // NewKLineService 创建K线数据服务 (保持向后兼容)
-func NewKLineService(db *gorm.DB, logger *logrus.Logger, collectorManager *collector.CollectorManager) *KLineService {
-	return GetKLineService(db, logger, collectorManager)
+func NewKLineService(db *gorm.DB, logger *logrus.Logger, collectorFactory *collector.CollectorFactory) *KLineService {
+	return GetKLineService(db, logger, collectorFactory)
 }
 
 // dateToInt 将time.Time转换为YYYYMMDD格式的int
@@ -78,7 +78,7 @@ func (s *KLineService) GetKLineData(tsCode string, startDate, endDate time.Time)
 func (s *KLineService) RefreshKLineData(tsCode string, startDate, endDate time.Time) ([]model.DailyData, error) {
 	s.logger.Infof("Refreshing daily data from API for %s", tsCode)
 
-	collector, err := s.collectorManager.GetCollector("eastmoney")
+	collector, err := s.collectorFactory.GetCollector("eastmoney")
 	if err != nil {
 		return nil, fmt.Errorf("eastmoney collector not found: %w", err)
 	}
@@ -217,7 +217,7 @@ func (s *KLineService) SyncDailyDataForStock(stockCode string, months int) error
 	s.logger.Infof("Starting to sync daily K-line data for %s to database...", stockCode)
 
 	// 获取采集器
-	c, err := s.collectorManager.GetCollector("eastmoney")
+	c, err := s.collectorFactory.GetCollector("eastmoney")
 	if err != nil {
 		return fmt.Errorf("eastmoney collector not found: %w", err)
 	}

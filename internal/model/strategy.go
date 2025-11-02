@@ -25,7 +25,7 @@ type StrategyResult struct {
 	ID         uint      `json:"id" gorm:"primaryKey"`                                                                           // 主键ID
 	StrategyID uint      `json:"strategy_id" gorm:"not null;index"`                                                              // 策略ID
 	Strategy   Strategy  `json:"strategy" gorm:"foreignKey:StrategyID"`                                                          // 关联策略
-	TsCode     string    `json:"ts_code" gorm:"size:20;not null;index"`                                                          // 股票代码
+	TsCode     string    `json:"ts_code" gorm:"size:20;index"`                                                                   // 股票代码
 	Stock      Stock     `json:"stock" gorm:"foreignKey:TsCode;references:TsCode;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"` // 关联股票
 	Score      float64   `json:"score"`                                                                                          // 评分
 	Rank       int       `json:"rank"`                                                                                           // 排名
@@ -55,7 +55,7 @@ type PortfolioStock struct {
 	ID           uint      `json:"id" gorm:"primaryKey"`                                                                           // 主键ID
 	PortfolioID  uint      `json:"portfolio_id" gorm:"not null;index"`                                                             // 组合ID
 	Portfolio    Portfolio `json:"portfolio" gorm:"foreignKey:PortfolioID"`                                                        // 关联组合
-	TsCode       string    `json:"ts_code" gorm:"size:20;not null;index"`                                                          // 股票代码
+	TsCode       string    `json:"ts_code" gorm:"size:20;index"`                                                                   // 股票代码
 	Stock        Stock     `json:"stock" gorm:"foreignKey:TsCode;references:TsCode;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"` // 关联股票
 	Shares       int64     `json:"shares" gorm:"not null"`                                                                         // 持股数量
 	AvgPrice     float64   `json:"avg_price" gorm:"not null"`                                                                      // 平均成本价

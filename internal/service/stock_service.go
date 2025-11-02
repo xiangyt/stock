@@ -16,7 +16,7 @@ import (
 type StockService struct {
 	db               *gorm.DB
 	logger           *logrus.Logger
-	collectorManager *collector.CollectorManager
+	collectorFactory *collector.CollectorFactory
 }
 
 var (
@@ -25,20 +25,20 @@ var (
 )
 
 // GetStockService 获取股票数据服务单例
-func GetStockService(db *gorm.DB, logger *logrus.Logger, collectorManager *collector.CollectorManager) *StockService {
+func GetStockService(db *gorm.DB, logger *logrus.Logger, collectorFactory *collector.CollectorFactory) *StockService {
 	stockServiceOnce.Do(func() {
 		stockServiceInstance = &StockService{
 			db:               db,
 			logger:           logger,
-			collectorManager: collectorManager,
+			collectorFactory: collectorFactory,
 		}
 	})
 	return stockServiceInstance
 }
 
 // NewStockService 创建股票数据服务 (保持向后兼容)
-func NewStockService(db *gorm.DB, logger *logrus.Logger, collectorManager *collector.CollectorManager) *StockService {
-	return GetStockService(db, logger, collectorManager)
+func NewStockService(db *gorm.DB, logger *logrus.Logger, collectorFactory *collector.CollectorFactory) *StockService {
+	return GetStockService(db, logger, collectorFactory)
 }
 
 // SyncAllStocks 同步所有股票数据到数据库
@@ -46,7 +46,7 @@ func (s *StockService) SyncAllStocks() error {
 	s.logger.Info("Starting to sync all stocks to database...")
 
 	// 获取采集器
-	collector, err := s.collectorManager.GetCollector("eastmoney")
+	collector, err := s.collectorFactory.GetCollector("eastmoney")
 	if err != nil {
 		return fmt.Errorf("eastmoney collector not found: %w", err)
 	}
@@ -229,7 +229,7 @@ func (s *StockService) RefreshStockDetail(tsCode string) (*model.Stock, error) {
 	s.logger.Infof("Refreshing stock detail for %s", tsCode)
 
 	// 获取采集器
-	collector, err := s.collectorManager.GetCollector("eastmoney")
+	collector, err := s.collectorFactory.GetCollector("eastmoney")
 	if err != nil {
 		return nil, fmt.Errorf("eastmoney collector not found: %w", err)
 	}
@@ -259,4 +259,29 @@ func (s *StockService) RefreshStockDetail(tsCode string) (*model.Stock, error) {
 
 	s.logger.Infof("Successfully refreshed stock detail for %s", tsCode)
 	return stockDetail, nil
+}
+
+// GetStockListWithPagination 分页获取股票列表
+func (s *StockService) GetStockListWithPagination(page, size int) ([]model.Stock, int64, error) {
+	var stocks []model.Stock
+	var total int64
+
+	// 计算偏移量
+	offset := (page - 1) * size
+
+	// 获取总数
+	if err := s.db.Model(&model.Stock{}).Where("is_active = ?", true).Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count stocks: %w", err)
+	}
+
+	// 分页查询
+	if err := s.db.Where("is_active = ?", true).
+		Order("ts_code ASC").
+		Limit(size).
+		Offset(offset).
+		Find(&stocks).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to get stocks: %w", err)
+	}
+
+	return stocks, total, nil
 }

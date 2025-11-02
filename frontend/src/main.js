@@ -1,34 +1,41 @@
 import { createApp } from 'vue'
-import { createRouter, createWebHistory } from 'vue-router'
+import App from './App.vue'
+import router from './router'
+import store from './store'
+
+// Element Plus
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 
-import App from './App.vue'
-import Home from './views/Home.vue'
-import StockList from './views/StockList.vue'
-import StockDetail from './views/StockDetail.vue'
-import Analysis from './views/Analysis.vue'
+// 权限指令和组件
+import { permissionDirective, roleDirective } from '@/utils/auth'
+import PermissionButton from '@/components/PermissionButton.vue'
+import PermissionWrapper from '@/components/PermissionWrapper.vue'
 
-const routes = [
-  { path: '/', component: Home },
-  { path: '/stocks', component: StockList },
-  { path: '/stock/:code', component: StockDetail, props: true },
-  { path: '/analysis', component: Analysis }
-]
-
-const router = createRouter({
-  history: createWebHistory(),
-  routes
-})
+// 样式
+import '@/styles/index.css'
 
 const app = createApp(App)
 
-// 注册所有图标
+// 注册Element Plus图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
 
-app.use(ElementPlus)
+// 注册权限指令
+app.directive('permission', permissionDirective)
+app.directive('role', roleDirective)
+
+// 注册权限组件
+app.component('PermissionButton', PermissionButton)
+app.component('PermissionWrapper', PermissionWrapper)
+
+app.use(store)
 app.use(router)
+app.use(ElementPlus, {
+  locale: zhCn,
+})
+
 app.mount('#app')

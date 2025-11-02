@@ -4,13 +4,14 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"stock/internal/api"
 	"stock/internal/collector"
 	"stock/internal/config"
 	"stock/internal/database"
 	"stock/internal/logger"
 	"stock/internal/model"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -35,22 +36,40 @@ func main() {
 	db := dbManager.DB
 
 	// 自动迁移数据库表
-	if err := db.AutoMigrate(&model.Stock{}, &model.DailyData{}, &model.PerformanceReport{}); err != nil {
+	if err := db.AutoMigrate(
+		&model.Stock{},
+		&model.DailyData{},
+		&model.Task{},
+		&model.Strategy{},
+		&model.PerformanceReport{},
+
+		&model.User{},
+		&model.Role{},
+		&model.Permission{},
+		&model.RolePermission{},
+		&model.UserLoginLog{},
+		&model.UserOperationLog{},
+		&model.JWTBlacklist{},
+	); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	// 创建数据采集器
-	eastMoneyCollector := collector.GetCollectorFactory(logger.GetGlobalLogger()).GetEastMoneyCollector()
+	utilsLogger.Info("Database migration completed successfully")
+
+	// 创建采集器工厂
+	collectorFactory := collector.GetCollectorFactory(utilsLogger)
+
+	// 获取东方财富采集器
+	eastMoneyCollector := collectorFactory.GetEastMoneyCollector()
 	if err := eastMoneyCollector.Connect(); err != nil {
 		log.Fatalf("Failed to connect to data source: %v", err)
 	}
 
-	// 创建采集器管理器
-	collectorManager := collector.NewCollectorManager(utilsLogger)
-	collectorManager.RegisterCollector("eastmoney", eastMoneyCollector)
+	// 注册采集器
+	collectorFactory.RegisterCollector("eastmoney", eastMoneyCollector)
 
 	// 创建API处理器（传入数据库连接）
-	apiHandler := api.NewHandler(collectorManager, logrusLogger, db)
+	apiHandler := api.NewHandler(collectorFactory, logrusLogger, db)
 
 	// 设置Gin模式
 	gin.SetMode(gin.ReleaseMode)
@@ -72,21 +91,8 @@ func main() {
 		c.Next()
 	})
 
-	// API路由组
-	v1 := router.Group("/api/v1")
-	{
-		// 股票相关接口
-		stocks := v1.Group("/stocks")
-		{
-			stocks.GET("/", apiHandler.GetStockList)                           // 获取股票列表
-			stocks.GET("/:code", apiHandler.GetStockDetail)                    // 获取股票详情
-			stocks.GET("/:code/kline", apiHandler.GetKLineData)                // 获取K线数据
-			stocks.GET("/:code/performance", apiHandler.GetPerformanceReports) // 获取业绩报表数据
-		}
-
-		// 实时数据接口
-		v1.GET("/realtime", apiHandler.GetRealtimeData) // 获取实时数据
-	}
+	// 使用模块化路由
+	api.SetupRoutes(router, apiHandler)
 
 	// 静态文件服务
 	router.Static("/static", "./web/static")

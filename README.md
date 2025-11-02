@@ -1,250 +1,341 @@
-# 智能选股系统 (Smart Stock Selection System)
+# 智能选股系统
 
-基于Go语言开发的高性能智能选股系统，集成技术分析、基本面分析和多种选股策略。
+一个基于Go语言开发的智能选股系统，支持多数据源采集、策略分析和自动化通知。
 
-## 项目架构
+## 🎯 系统概述
+
+智能选股系统是一个全流程的股票投资辅助平台，从数据采集、策略分析到结果通知，为投资者提供完整的技术支持。
+
+## 🏗️ 系统架构
+
+### 核心模块
+
+#### 1. 数据采集管理模块
+- **数据源配置**: 支持东方财富、同花顺等多个数据源
+- **采集任务调度**: 自动化数据采集任务管理
+- **数据质量监控**: 实时监控数据完整性和准确性
+- **历史数据管理**: 海量历史数据存储和查询
+
+#### 2. 策略配置模块
+- **选股策略编辑器**: 可视化策略配置界面
+- **策略参数配置**: 灵活的参数调整机制
+- **策略回测功能**: 历史数据验证策略有效性
+- **策略性能分析**: 多维度策略效果评估
+
+#### 3. 通知机器人配置模块
+- **钉钉/企微机器人管理**: 多平台消息推送支持
+- **消息模板配置**: 自定义通知内容格式
+- **通知规则设置**: 智能化通知触发条件
+- **发送记录查询**: 完整的消息发送历史
+
+#### 4. 用户管理模块
+- **用户认证授权**: 安全的登录和权限控制
+- **角色权限管理**: 细粒度的功能权限分配
+- **个人偏好设置**: 个性化用户体验
+- **操作日志记录**: 完整的用户行为追踪
+
+#### 5. 股票数据管理模块
+- **股票基础信息管理**: 完整的股票档案信息
+- **K线数据查询与展示**: 多周期K线图表分析
+- **财务数据分析**: 深度财务指标挖掘
+- **实时行情监控**: 实时价格和成交数据
+- **技术指标计算**: 丰富的技术分析工具
+
+#### 6. 选股结果管理模块
+- **选股结果展示**: 直观的选股结果呈现
+- **股票池管理**: 多维度股票分组管理
+- **关注列表功能**: 个性化股票关注
+- **历史选股记录**: 完整的选股历史追踪
+- **结果导出功能**: 多格式数据导出支持
+
+#### 7. 风险控制模块
+- **风险指标监控**: 实时风险评估
+- **止损止盈设置**: 智能化风险控制
+- **仓位管理建议**: 科学的资金配置
+- **风险预警机制**: 及时的风险提醒
+
+#### 8. 报表分析模块
+- **策略收益统计**: 详细的收益分析报告
+- **选股成功率分析**: 策略有效性评估
+- **市场热点分析**: 市场趋势洞察
+- **自定义报表生成**: 灵活的报表定制
+
+#### 9. 系统监控模块
+- **系统性能监控**: 实时系统状态监控
+- **数据采集状态**: 采集任务执行情况
+- **API调用统计**: 接口使用情况分析
+- **错误日志管理**: 系统异常处理和追踪
+
+#### 10. 投资组合模块
+- **模拟投资组合**: 虚拟投资组合管理
+- **收益跟踪**: 投资收益实时跟踪
+- **资产配置建议**: 智能化资产配置
+- **投资记录管理**: 完整的投资历史记录
+
+## 🎨 前端页面结构
+
+```
+智能选股系统前端
+├── 登录/注册页面
+├── 仪表板 (Dashboard)
+│   ├── 系统概览
+│   ├── 今日选股结果
+│   └── 关键指标监控
+├── 股票管理
+│   ├── 股票列表
+│   ├── 股票详情
+│   └── K线图表
+├── 策略中心
+│   ├── 策略列表
+│   ├── 策略编辑器
+│   ├── 回测分析
+│   └── 策略性能
+├── 选股结果
+│   ├── 今日选股
+│   ├── 历史记录
+│   └── 股票池管理
+├── 数据管理
+│   ├── 数据源配置
+│   ├── 采集任务
+│   └── 数据质量
+├── 通知配置
+│   ├── 机器人管理
+│   ├── 消息模板
+│   └── 发送记录
+├── 系统设置
+│   ├── 用户管理
+│   ├── 权限配置
+│   └── 系统监控
+└── 个人中心
+    ├── 个人信息
+    ├── 偏好设置
+    └── 操作日志
+```
+
+## 🔧 技术栈
+
+- **后端**: Go 1.21+, Gin, GORM, MySQL
+- **前端**: Vue 3, Element Plus, ECharts, Vite
+- **数据库**: MySQL 8.0+
+- **缓存**: Redis (可选)
+- **消息队列**: 支持多种MQ (可选)
+- **部署**: Docker, Docker Compose
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Go 1.21+
+- MySQL 8.0+
+- Node.js 16+
+
+### 安装步骤
+
+1. 克隆项目
+```bash
+git clone <repository-url>
+cd stock
+```
+
+2. 配置数据库
+```bash
+# 创建数据库
+mysql -u root -p -e "CREATE DATABASE stock CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# 导入表结构
+mysql -u root -p stock < scripts/create_tables.sql
+```
+
+3. 配置文件
+```bash
+cp configs/app.yaml.example configs/app.yaml
+# 编辑配置文件，修改数据库连接信息
+```
+
+4. 启动后端服务
+```bash
+go mod tidy
+go run cmd/web/main.go
+```
+
+5. 启动前端服务
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 访问地址
+
+- 前端界面: http://localhost:3000
+- 后端API: http://localhost:8080
+- API文档: http://localhost:8080/swagger/index.html
+
+## 📁 项目结构
 
 ```
 stock/
-├── README.md                    # 项目说明文档
-├── go.mod                       # Go模块文件
-├── go.sum                       # 依赖校验文件
-├── Makefile                     # 构建脚本
-├── Dockerfile                   # Docker构建文件
-├── docker-compose.yml           # Docker编排文件
-├── .env.example                 # 环境变量示例
-├── .gitignore                   # Git忽略文件
-│
-├── cmd/                         # 应用程序入口
-│   ├── server/                  # Web服务器
-│   │   └── main.go
-│   ├── cli/                     # 命令行工具
-│   │   └── main.go
-│   └── worker/                  # 后台任务处理器
-│       └── main.go
-│
-├── internal/                    # 内部包（不对外暴露）
-│   ├── config/                  # 配置管理
-│   │   ├── config.go
-│   │   └── database.go
-│   │
-│   ├── model/                   # 数据模型
-│   │   ├── stock.go
-│   │   ├── daily_data.go
-│   │   ├── financial_data.go
-│   │   ├── technical_indicator.go
-│   │   └── selection_result.go
-│   │
-│   ├── repository/              # 数据访问层
-│   │   ├── interface.go
-│   │   ├── stock_repo.go
-│   │   ├── daily_data_repo.go
-│   │   ├── financial_repo.go
-│   │   └── selection_repo.go
-│   │
-│   ├── service/                 # 业务逻辑层
-│   │   ├── data_collector.go
-│   │   ├── technical_analyzer.go
-│   │   ├── fundamental_analyzer.go
-│   │   ├── strategy_engine.go
-│   │   ├── backtest_engine.go
-│   │   └── risk_manager.go
-│   │
-│   ├── handler/                 # HTTP处理器
-│   │   ├── stock_handler.go
-│   │   ├── analysis_handler.go
-│   │   ├── strategy_handler.go
-│   │   └── middleware.go
-│   │
-│   ├── collector/               # 数据采集器
-│   │   ├── interface.go
-│   │   ├── tushare_collector.go
-│   │   ├── akshare_collector.go
-│   │   └── yahoo_collector.go
-│   │
-│   ├── strategy/                # 选股策略
-│   │   ├── interface.go
-│   │   ├── base_strategy.go
-│   │   ├── technical_strategy.go
-│   │   ├── fundamental_strategy.go
-│   │   └── combined_strategy.go
-│   │
-│   ├── indicator/               # 技术指标计算
-│   │   ├── ma.go
-│   │   ├── rsi.go
-│   │   ├── macd.go
-│   │   ├── kdj.go
-│   │   └── bollinger.go
-│   │
-│   └── utils/                   # 工具包
-│       ├── logger.go
-│       ├── database.go
-│       ├── http_client.go
-│       ├── math.go
-│       └── time.go
-│
-├── pkg/                         # 公共包（可对外暴露）
-│   ├── errors/                  # 错误定义
-│   │   └── errors.go
-│   ├── response/                # HTTP响应格式
-│   │   └── response.go
-│   └── validator/               # 数据验证
-│       └── validator.go
-│
-├── api/                         # API定义
-│   ├── openapi.yaml            # OpenAPI规范
-│   └── proto/                  # gRPC协议定义（可选）
-│       └── stock.proto
-│
-├── web/                         # 前端资源
-│   ├── static/                 # 静态文件
-│   │   ├── css/
-│   │   ├── js/
-│   │   └── images/
-│   └── templates/              # HTML模板
-│       ├── index.html
-│       ├── analysis.html
-│       └── strategy.html
-│
-├── scripts/                     # 脚本文件
-│   ├── init_db.sql             # 数据库初始化脚本
-│   ├── migrate.sh              # 数据库迁移脚本
-│   └── deploy.sh               # 部署脚本
-│
-├── configs/                     # 配置文件
-│   ├── app.yaml                # 应用配置
-│   ├── database.yaml           # 数据库配置
-│   └── strategy.yaml           # 策略配置
-│
-├── docs/                        # 文档
-│   ├── api.md                  # API文档
-│   ├── deployment.md           # 部署文档
-│   └── development.md          # 开发文档
-│
-├── test/                        # 测试文件
-│   ├── integration/            # 集成测试
-│   ├── unit/                   # 单元测试
-│   └── testdata/               # 测试数据
-│
-└── vendor/                      # 依赖包（可选，使用go mod vendor生成）
+├── cmd/                    # 应用程序入口
+│   ├── api/               # API服务
+│   ├── cli/               # 命令行工具
+│   ├── web/               # Web服务
+│   └── worker/            # 后台任务
+├── internal/              # 内部包
+│   ├── api/               # API处理器
+│   ├── collector/         # 数据采集器
+│   ├── config/            # 配置管理
+│   ├── database/          # 数据库连接
+│   ├── handler/           # 业务处理器
+│   ├── model/             # 数据模型
+│   ├── repository/        # 数据访问层
+│   ├── service/           # 业务逻辑层
+│   └── utils/             # 工具函数
+├── frontend/              # 前端项目
+├── configs/               # 配置文件
+├── scripts/               # 脚本文件
+├── docs/                  # 文档
+└── test/                  # 测试文件
 ```
 
-## 核心模块说明
+## 🔌 API接口设计
 
-### 1. **应用入口** (`cmd/`)
-- **server**: Web API服务器
-- **cli**: 命令行工具（数据更新、选股执行等）
-- **worker**: 后台任务处理（定时数据更新、策略执行）
-
-### 2. **内部包** (`internal/`)
-- **config**: 配置管理，支持YAML、环境变量
-- **model**: 数据模型定义，对应数据库表结构
-- **repository**: 数据访问层，封装数据库操作
-- **service**: 业务逻辑层，核心业务处理
-- **handler**: HTTP处理器，处理Web请求
-- **collector**: 数据采集器，支持多数据源
-- **strategy**: 选股策略实现
-- **indicator**: 技术指标计算
-- **utils**: 通用工具函数
-
-### 3. **公共包** (`pkg/`)
-- **errors**: 统一错误定义
-- **response**: HTTP响应格式标准化
-- **validator**: 数据验证工具
-
-### 4. **API定义** (`api/`)
-- **openapi.yaml**: RESTful API规范
-- **proto**: gRPC服务定义（可选）
-
-### 5. **前端资源** (`web/`)
-- **static**: CSS、JS、图片等静态资源
-- **templates**: HTML模板文件
-
-## 技术栈
-
-### 后端框架
-- **Web框架**: Gin/Echo/Fiber
-- **ORM**: GORM
-- **数据库**: PostgreSQL/MySQL/SQLite
-- **缓存**: Redis
-- **消息队列**: RabbitMQ/Kafka（可选）
-
-### 数据处理
-- **HTTP客户端**: Resty
-- **JSON处理**: encoding/json
-- **时间处理**: time包
-- **数学计算**: math包 + 自定义指标算法
-
-### 工具库
-- **配置管理**: Viper
-- **日志**: Logrus/Zap
-- **验证**: go-playground/validator
-- **测试**: Testify
-- **文档**: Swagger
-
-### 部署工具
-- **容器化**: Docker + Docker Compose
-- **构建**: Makefile
-- **CI/CD**: GitHub Actions（可选）
-
-## 项目特点
-
-### 1. **高性能**
-- Go语言原生并发支持
-- 高效的内存管理
-- 快速的编译和执行
-
-### 2. **模块化设计**
-- 清晰的分层架构
-- 接口驱动开发
-- 易于测试和维护
-
-### 3. **可扩展性**
-- 插件化的数据源
-- 策略模式的选股算法
-- 微服务架构支持
-
-### 4. **生产就绪**
-- 完整的错误处理
-- 日志和监控
-- Docker化部署
-
-## 快速开始
-
-```bash
-# 1. 初始化项目
-go mod init stock
-
-# 2. 安装依赖
-go mod tidy
-
-# 3. 初始化数据库
-make init-db
-
-# 4. 启动服务
-make run-server
-
-# 5. 启动Web界面
-open http://localhost:8080
+### RESTful API 结构
+```
+/api/v1/
+├── auth/           # 认证相关
+│   ├── POST /login
+│   ├── POST /logout
+│   └── POST /refresh
+├── users/          # 用户管理
+│   ├── GET /users
+│   ├── POST /users
+│   ├── PUT /users/:id
+│   └── DELETE /users/:id
+├── stocks/         # 股票数据
+│   ├── GET /stocks
+│   ├── GET /stocks/:code
+│   └── GET /stocks/:code/kline
+├── strategies/     # 策略管理
+│   ├── GET /strategies
+│   ├── POST /strategies
+│   ├── PUT /strategies/:id
+│   └── DELETE /strategies/:id
+├── selections/     # 选股结果
+│   ├── GET /selections
+│   ├── POST /selections
+│   └── GET /selections/history
+├── collectors/     # 数据采集
+│   ├── GET /collectors
+│   ├── POST /collectors/sync
+│   └── GET /collectors/status
+├── notifications/  # 通知管理
+│   ├── GET /robots
+│   ├── POST /robots
+│   ├── PUT /robots/:id
+│   └── POST /notifications/send
+├── portfolios/     # 投资组合
+│   ├── GET /portfolios
+│   ├── POST /portfolios
+│   └── GET /portfolios/:id/performance
+├── reports/        # 报表分析
+│   ├── GET /reports/strategy-performance
+│   ├── GET /reports/market-analysis
+│   └── GET /reports/custom
+├── monitoring/     # 系统监控
+│   ├── GET /monitoring/system
+│   ├── GET /monitoring/api-stats
+│   └── GET /monitoring/logs
+└── settings/       # 系统设置
+    ├── GET /settings
+    └── PUT /settings
 ```
 
-## 开发命令
+## 🗄️ 数据库设计
 
+### 核心数据表
+```sql
+-- 用户相关
+users, roles, permissions, user_roles
+
+-- 股票数据
+stocks, daily_data, kline_data, financial_data
+
+-- 策略相关  
+strategies, strategy_params, strategy_results, backtests
+
+-- 选股相关
+stock_selections, stock_pools, watchlists
+
+-- 投资组合
+portfolios, portfolio_stocks, transactions
+
+-- 通知机器人
+robot_configs, notification_logs
+
+-- 系统监控
+system_logs, api_logs, performance_metrics
+```
+
+## 🔧 配置说明
+
+### 数据库配置
+```yaml
+database:
+  host: localhost
+  port: 3306
+  username: root
+  password: your_password
+  database: stock
+```
+
+### 数据源配置
+```yaml
+collectors:
+  eastmoney:
+    enabled: true
+    rate_limit: 100
+  tushare:
+    enabled: false
+    token: your_token
+```
+
+## 📚 开发指南
+
+### 添加新的数据采集器
+
+1. 实现 `DataCollector` 接口
+2. 在 `collector` 包中注册
+3. 添加配置项
+
+### 添加新的选股策略
+
+1. 实现 `Strategy` 接口
+2. 在 `strategy` 包中注册
+3. 添加参数配置
+
+## 🚢 部署
+
+### Docker部署
 ```bash
-# 构建
-make build
+docker-compose up -d
+```
 
-# 测试
-make test
+### 手动部署
+```bash
+# 构建后端
+go build -o stock cmd/web/main.go
 
-# 代码检查
-make lint
+# 构建前端
+cd frontend && npm run build
 
-# 生成文档
-make docs
+# 启动服务
+./stock
+```
 
-# Docker构建
-make docker-build
+## 🤝 贡献
 
-# 部署
-make deploy
+欢迎提交Issue和Pull Request来改进项目。
+
+## 📄 许可证
+
+MIT License
