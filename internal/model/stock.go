@@ -39,6 +39,11 @@ type DailyData struct {
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
 }
 
+// GetVolume 获取成交量
+func (d DailyData) GetVolume() int64 {
+	return d.Volume
+}
+
 // Get4Price 获取最高、最低、开盘、收盘价
 func (d DailyData) Get4Price() (float64, float64, float64, float64) {
 	return d.High, d.Low, d.Open, d.Close
@@ -120,6 +125,11 @@ type WeeklyData struct {
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
 }
 
+// GetVolume 获取成交量
+func (w WeeklyData) GetVolume() int64 {
+	return w.Volume
+}
+
 // Get4Price 获取最高、最低、开盘、收盘价
 func (w WeeklyData) Get4Price() (float64, float64, float64, float64) {
 	return w.High, w.Low, w.Open, w.Close
@@ -168,6 +178,11 @@ type MonthlyData struct {
 	Amount    float64   `json:"amount" gorm:"type:decimal(20,2)"`           // 月成交额，单位：元
 	CreatedAt time.Time `json:"created_at"`                                 // 记录创建时间戳
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
+}
+
+// GetVolume 获取成交量
+func (m MonthlyData) GetVolume() int64 {
+	return m.Volume
 }
 
 // Get4Price 获取最高、最低、开盘、收盘价
@@ -239,6 +254,11 @@ type YearlyData struct {
 	UpdatedAt time.Time `json:"updated_at"`                                 // 记录更新时间戳
 }
 
+// GetVolume 获取成交量
+func (y YearlyData) GetVolume() int64 {
+	return y.Volume
+}
+
 // Get4Price 获取最高、最低、开盘、收盘价
 func (y YearlyData) Get4Price() (float64, float64, float64, float64) {
 	return y.High, y.Low, y.Open, y.Close
@@ -288,6 +308,14 @@ type TechnicalIndicator struct {
 	KdjK      float64 `json:"kdj_k" gorm:"column:kdj_k;type:decimal(8,4)"`             // Kdj指标K值，范围0-100，随机指标
 	KdjD      float64 `json:"kdj_d" gorm:"column:kdj_d;type:decimal(8,4)"`             // Kdj指标D值，范围0-100，K值的平滑线
 	KdjJ      float64 `json:"kdj_j" gorm:"column:kdj_j;type:decimal(8,4)"`             // Kdj指标J值，3K-2D，敏感度最高
+
+	// 筹码分布相关指标
+	ChipAvgCost       float64 `json:"chip_avg_cost" gorm:"column:chip_avg_cost;type:decimal(10,3)"`          // 筹码平均成本，单位：元
+	ChipConcentration float64 `json:"chip_concentration" gorm:"column:chip_concentration;type:decimal(8,4)"` // 筹码集中度，单位：%，90%筹码的价格区间/平均价格
+	ChipProfitRatio   float64 `json:"chip_profit_ratio" gorm:"column:chip_profit_ratio;type:decimal(8,4)"`   // 获利盘比例，单位：%，成本价低于当前价的筹码比例
+	ChipLossRatio     float64 `json:"chip_loss_ratio" gorm:"column:chip_loss_ratio;type:decimal(8,4)"`       // 套牢盘比例，单位：%，成本价高于当前价的筹码比例
+	ChipActiveRatio   float64 `json:"chip_active_ratio" gorm:"column:chip_active_ratio;type:decimal(8,4)"`   // 活跃筹码比例，单位：%，在当前交易区间附近的筹码比例
+	ChipDeadRatio     float64 `json:"chip_dead_ratio" gorm:"column:chip_dead_ratio;type:decimal(8,4)"`       // 死筹码比例，单位：%，远离当前交易区间的筹码比例
 
 	// 内部字段，用于动态表名
 	Period TechnicalIndicatorPeriod `json:"-" gorm:"-"` // 周期类型，不存储到数据库

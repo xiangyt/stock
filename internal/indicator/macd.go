@@ -7,6 +7,7 @@ type IndStock interface {
 	Get4Price() (float64, float64, float64, float64) // 获取最高、最低、开盘、收盘价
 	GetSymbol() string                               // 获取股票代码
 	GetTradeDate() int                               // 获取交易日期
+	GetVolume() int64                                // 获取交易量
 }
 
 // MACDStock 计算macd指标需要实现的方法
