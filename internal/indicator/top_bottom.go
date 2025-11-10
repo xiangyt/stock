@@ -42,7 +42,7 @@ type StickData struct {
 	End   float64 `json:"end"`
 }
 
-// 计算时间控制指标
+// CalculateTimeControlIndicator 顶底信号 计算时间控制指标
 func CalculateTimeControlIndicator(data []model.DailyData) *TimeControlIndicatorResult {
 	if len(data) < 58 { // 需要至少58个数据点来计算MA(58)
 		return nil

@@ -182,6 +182,7 @@ func calSignals(services *service.Services) {
 		make(chan *model.Stock, 100),
 		make(chan *model.Stock, 100),
 		make(chan *model.Stock, 100),
+		make(chan *model.Stock, 100),
 	}
 
 	go func() {
@@ -198,6 +199,9 @@ func calSignals(services *service.Services) {
 	}()
 	go func() {
 		sendSignal(ch[4], "红顶底(极底) + 顶部信号(红柱)", services.NotifyManger)
+	}()
+	go func() {
+		sendSignal(ch[5], "缠论(买入) + 顶部信号(红柱)", services.NotifyManger)
 	}()
 
 	var wg sync.WaitGroup
@@ -953,6 +957,9 @@ func calculateStockSignal(stock *model.Stock, ch []chan *model.Stock) error {
 	if err != nil {
 		return err
 	}
+	if len(daily) == 0 {
+		return nil
+	}
 	today := time.Now().Format("20060102")
 	i, _ := strconv.Atoi(today)
 	res := indicator.RedThree(daily)
@@ -976,9 +983,19 @@ func calculateStockSignal(stock *model.Stock, ch []chan *model.Stock) error {
 	}
 
 	res3 := indicator.CalculateTimeControlIndicator(daily)
-	if res2 != nil && len(res2.Signals.ExtremeBottom) > 0 && res2.Signals.ExtremeBottom[len(res2.Signals.ExtremeBottom)-1] == i {
-		if res3 != nil && len(res3.Buy) > 0 && res3.Buy[len(res3.Buy)-1] == i {
+	if res3 != nil && len(res3.Buy) > 0 && res3.Buy[len(res3.Buy)-1] == i {
+		if res2 != nil && len(res2.Signals.ExtremeBottom) > 0 && res2.Signals.ExtremeBottom[len(res2.Signals.ExtremeBottom)-1] == i {
 			ch[4] <- stock
+		}
+
+		res4 := indicator.CalculateSupportResistance(daily, &indicator.DynamicInfo{
+			Open:  daily[len(daily)-1].Open,
+			High:  daily[len(daily)-1].High,
+			Low:   daily[len(daily)-1].Low,
+			Close: daily[len(daily)-1].Close,
+		})
+		if res4 != nil && len(res4.BuySignals.BuyStars) > 0 && res4.BuySignals.BuyStars[len(res4.BuySignals.BuyStars)-1] == i {
+			ch[5] <- stock
 		}
 	}
 	return nil

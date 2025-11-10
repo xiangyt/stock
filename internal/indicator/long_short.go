@@ -73,7 +73,7 @@ type DynamicInfo struct {
 	Close float64 `json:"close"` // 最新
 }
 
-// CalculateSupportResistance 计算支撑阻力趋势指标
+// CalculateSupportResistance 缠论多空 计算支撑阻力趋势指标
 func CalculateSupportResistance(data []model.DailyData, dynaInfo *DynamicInfo) *SupportResistanceResult {
 	if len(data) < 55 { // 需要至少55个数据点
 		return nil
